@@ -1,0 +1,90 @@
+MAVIRA - Native Reading Experience
+Third-Party Open-Source Software Notices
+================================================================================
+
+MAVIRA is licensed under the MIT License (see LICENSE).
+This distribution bundles or dynamically links the following open-source
+libraries. Each component remains subject to its respective license terms.
+
+--------------------------------------------------------------------------------
+1. Qt 6 (qtbase: Core, Gui, Widgets, OpenGL, OpenGLWidgets)
+   License: GNU Lesser General Public License v3.0 (LGPL-3.0)
+   Copyright (C) The Qt Company Ltd. and other contributors.
+   Website: https://www.qt.io/
+   Compliance Note:
+   MAVIRA dynamically links against unmodified Qt 6 shared libraries (*.dll)
+   in accordance with LGPLv3 Section 4. Users may replace or relink the Qt 6
+   DLLs in the application directory with compatible builds. Complete Qt 6
+   source code and build instructions are available at https://download.qt.io/.
+
+--------------------------------------------------------------------------------
+2. PDFium
+   License: BSD-3-Clause
+   Copyright 2014 The PDFium Authors. All rights reserved.
+   Website: https://pdfium.googlesource.com/pdfium/
+   Redistribution and use in source and binary forms, with or without
+   modification, are permitted under the 3-Clause BSD License, preserving
+   copyright notices and disclaimers.
+
+--------------------------------------------------------------------------------
+3. libzip
+   License: BSD-3-Clause
+   Copyright (C) 1999-2024 Dieter Baron and Thomas Klausner.
+   Website: https://libzip.org/
+   Redistribution and use in source and binary forms, with or without
+   modification, are permitted under the 3-Clause BSD License.
+
+--------------------------------------------------------------------------------
+4. libarchive
+   License: BSD-2-Clause
+   Copyright (c) 2003-2024 Tim Kientzle and libarchive contributors.
+   Website: https://www.libarchive.org/
+   Redistribution and use in source and binary forms, with or without
+   modification, are permitted under the 2-Clause BSD License.
+
+--------------------------------------------------------------------------------
+5. libjpeg-turbo
+   License: IJG (Independent JPEG Group) License / Modified BSD-3-Clause / zlib
+   Copyright (C) 1991-2024 Thomas G. Lane, Guido Vollbeding, D. R. Commander,
+   and libjpeg-turbo contributors.
+   Website: https://libjpeg-turbo.org/
+   This software is based in part on the work of the Independent JPEG Group.
+
+--------------------------------------------------------------------------------
+6. libpng
+   License: libpng License (zlib-style permissive license)
+   Copyright (c) 1995-2024 The PNG Reference Library Authors.
+   Website: http://www.libpng.org/pub/png/libpng.html
+
+--------------------------------------------------------------------------------
+7. libwebp
+   License: BSD-3-Clause
+   Copyright (c) 2010 Google Inc. All rights reserved.
+   Website: https://developers.google.com/speed/webp
+
+--------------------------------------------------------------------------------
+8. SQLite3
+   License: Public Domain
+   Author: D. Richard Hipp and SQLite contributors.
+   Website: https://www.sqlite.org/
+
+--------------------------------------------------------------------------------
+9. spdlog
+   License: MIT License
+   Copyright (c) 2016 Gabi Melman.
+   Website: https://github.com/gabime/spdlog
+
+--------------------------------------------------------------------------------
+10. Supporting Transitive Runtime Dependencies (vcpkg x64-windows)
+    - zlib (zlib License) - Copyright (C) Jean-loup Gailly and Mark Adler
+    - bzip2 (bzip2-1.0.6 BSD-style License) - Copyright (C) Julian Seward
+    - xz / liblzma (Public Domain / BSD-0-Clause) - Lasse Collin
+    - lz4 (BSD-2-Clause) - Yann Collet
+    - brotli (MIT License) - Google Inc.
+    - zstd (BSD-3-Clause) - Meta Platforms, Inc.
+    - OpenSSL / libcrypto (Apache-2.0) - The OpenSSL Project
+    - FreeType (FTL / GPLv2 dual-licensed, used under FTL) - David Turner et al.
+    - HarfBuzz (Old MIT License) - HarfBuzz contributors
+    - PCRE2 (BSD-3-Clause) - Philip Hazel
+    - double-conversion (BSD-3-Clause) - Google Inc.
+    - fmt (MIT License) - Victor Zverovich

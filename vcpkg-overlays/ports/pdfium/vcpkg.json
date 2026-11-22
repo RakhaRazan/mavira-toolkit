@@ -1,0 +1,8 @@
+{
+  "name": "pdfium",
+  "version": "160.0.8165",
+  "description": "PDFium open-source PDF rendering engine (prebuilt Windows x64 binaries from bblanchon/pdfium-binaries).",
+  "homepage": "https://github.com/bblanchon/pdfium-binaries",
+  "license": "BSD-3-Clause",
+  "supports": "windows & x64"
+}

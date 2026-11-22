@@ -1,0 +1,38 @@
+# Build & package artifacts
+build/
+vcpkg_installed/
+release/
+
+# Portable runtime layout, data & logs
+MAVIRA.exe
+runtime/
+data/
+logs/
+
+# Personal comic library & temporary test output folders
+V/
+#/
+
+# IDE & editor files
+.vs/
+.vscode/
+
+# Binaries, object files & debug symbols
+*.exe
+*.dll
+*.pdb
+*.obj
+
+# SQLite databases & cover cache packs
+*.db
+*.db-wal
+*.db-shm
+*.pack
+
+# Comic, archive & document formats
+*.cbz
+*.cbr
+*.cb7
+*.cbt
+*.pdf
+*.epub
