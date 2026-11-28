@@ -628,6 +628,18 @@ mavira::core::Result<void> LibraryManager::removeComicFromLibrary(
     const auto& comic = *comicRes.value();
     const std::wstring removedFilePath = comic.filePath.native();
 
+    // Release any open reader file handle synchronously before Recycle Bin deletion.
+    if (QThread::currentThread() == thread()) {
+        emit aboutToDeleteComic(comicId, removedFilePath);
+    } else {
+        QMetaObject::invokeMethod(
+            this,
+            [this, comicId, removedFilePath]() {
+                emit aboutToDeleteComic(comicId, removedFilePath);
+            },
+            Qt::BlockingQueuedConnection);
+    }
+
     if (deleteFromDisk && !comic.filePath.empty()) {
         const std::wstring cleanPath =
             mavira::data::fs::FileManager::stripWin32LongPathPrefix(

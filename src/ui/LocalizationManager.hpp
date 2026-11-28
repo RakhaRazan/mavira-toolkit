@@ -19,8 +19,9 @@ public:
     [[nodiscard]] static const std::string& currentLanguage() noexcept;
 
     /// Returns the localized string for `key` in the active language,
-    /// falling back to English (or `key` itself if unmapped).
+    /// falling back to English, or humanizing the trailing token if unmapped.
     [[nodiscard]] static QString tr(std::string_view key);
+    [[nodiscard]] static QString translate(std::string_view key) { return tr(key); }
 };
 
 } // namespace mavira::ui

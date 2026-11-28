@@ -4,6 +4,7 @@
 #include "core/rendering/RenderingEngine.hpp"
 #include "data/config/SettingsManager.hpp"
 
+#include <QColor>
 #include <QOpenGLBuffer>
 #include <QOpenGLFunctions>
 #include <QOpenGLShaderProgram>
@@ -13,8 +14,11 @@
 #include <QString>
 
 #include <cstdint>
+#include <map>
 #include <memory>
 #include <optional>
+#include <string>
+#include <unordered_map>
 #include <vector>
 
 class QComboBox;
@@ -51,6 +55,7 @@ public:
 
     void applySettings(const mavira::data::config::AppSettings& settings);
     void setDarkTheme(bool dark);
+    void retranslateUi();
 
     // -------------------------------------------------------------------------
     // Shader & Tool Controls
@@ -62,12 +67,24 @@ public:
     void setLoupeZoom(float zoom);
     [[nodiscard]] float loupeZoom() const noexcept { return loupeZoom_; }
 
+    void toggleAutoScroll();
+    void setAutoScrollSpeed(float pxPerSec);
+    [[nodiscard]] bool isAutoScrollActive() const noexcept { return autoScrollActive_; }
+
     void showHud();
     void hideHud();
     [[nodiscard]] bool isHudVisible() const;
 
     [[nodiscard]] bool shadersCompiled() const noexcept { return shadersReady_; }
-    [[nodiscard]] std::size_t uploadedTileCount() const noexcept { return gpuTiles_.size(); }
+    [[nodiscard]] std::size_t uploadedTileCount() const noexcept {
+        if (!webtoonPageGpuCache_.empty() && controller_ != nullptr) {
+            const auto it = webtoonPageGpuCache_.find(static_cast<int>(controller_->currentPage()));
+            if (it != webtoonPageGpuCache_.end()) {
+                return it->second.tiles.size();
+            }
+        }
+        return gpuTiles_.size();
+    }
 
     // Programmatic pan/scroll & lifecycle helpers
     void resetPanAndScroll();
@@ -78,6 +95,7 @@ public slots:
 
 signals:
     void backToLibraryRequested();
+    void toggleFullscreenRequested();
 
 protected:
     void initializeGL() override;
@@ -107,17 +125,31 @@ private:
         std::uint32_t height{0};
     };
 
+    struct PageGpuTiles {
+        std::uint32_t width{0};
+        std::uint32_t height{0};
+        std::vector<GpuTile> tiles{};
+    };
+
     void setupHudOverlay();
     void layoutHudOverlay();
     void syncHudFromController();
     void updateBookmarkButtonState();
     void cleanupGpuResources();
     void destroyTileTextures();
+    void destroyWebtoonPageGpuCache();
+    void syncWebtoonGpuCache(int centerPage);
     void uploadPendingLayout();
     [[nodiscard]] bool loadShaderPrograms();
     [[nodiscard]] QString resolveShaderPath(const QString& fileName) const;
 
     void clampPanOffset(float contentW, float contentH);
+    void advanceWebtoonScroll(double deltaY);
+    void onAutoScrollTick();
+    void resetCursorHideTimer();
+    [[nodiscard]] double computeLogicalWebtoonScale(
+        const mavira::core::rendering::SpreadLayoutResult& layout) const;
+    [[nodiscard]] bool matchesShortcut(const QKeyEvent* event, const std::string& actionId) const;
     [[nodiscard]] QPointF screenToImageUv(
         const QPointF& pos,
         float quadLeft,
@@ -135,6 +167,10 @@ private:
     std::unique_ptr<QOpenGLShaderProgram> quadShader_{};
     std::unique_ptr<QOpenGLShaderProgram> loupeShader_{};
     std::vector<GpuTile> gpuTiles_{};
+    std::unordered_map<int, PageGpuTiles> webtoonPageGpuCache_{};
+    std::uint32_t webtoonPrevHeightPx_{0};
+    std::uint32_t webtoonCurHeightPx_{0};
+    std::uint32_t webtoonNextHeightPx_{0};
 
     std::optional<mavira::core::rendering::SpreadLayoutResult> pendingLayout_{};
     std::optional<mavira::core::rendering::SpreadLayoutResult> activeLayout_{};
@@ -142,14 +178,27 @@ private:
 
     // Viewport interaction & tool state
     bool darkTheme_{true};
+    QColor customBgColor_{};
     bool loupeFeatureEnabled_{true};
     bool loupeActive_{false};
     float loupeZoom_{kDefaultLoupeZoom};
+    float loupeRadiusPx_{kDefaultLoupeRadiusPx};
     QPointF cursorPos_{0.0, 0.0};
 
     bool panning_{false};
     QPointF lastMousePos_{0.0, 0.0};
     QPointF panOffset_{0.0, 0.0};
+    bool seamlessWebtoonTransition_{false};
+    double pendingWebtoonCarryY_{0.0};
+    bool pendingWebtoonFromBottom_{false};
+    float lastLogicalScale_{1.0f};
+
+    int cursorHideMs_{2000};
+    QTimer* cursorHideTimer_{nullptr};
+    QTimer* autoScrollTimer_{nullptr};
+    bool autoScrollActive_{false};
+    float autoScrollSpeedPxPerSec_{120.0f};
+    std::map<std::string, std::string> shortcuts_{};
 
     // Auto-hiding HUD overlay widgets
     QTimer* hudHideTimer_{nullptr};
@@ -162,6 +211,7 @@ private:
     QPushButton* btnDirection_{nullptr};
     QComboBox* cmbFitMode_{nullptr};
     QPushButton* btnAutoCrop_{nullptr};
+    QPushButton* btnAutoScroll_{nullptr};
     bool updatingHudControls_{false};
 };
 

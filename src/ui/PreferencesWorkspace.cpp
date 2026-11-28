@@ -173,7 +173,8 @@ void PreferencesWorkspace::setupUi() {
     {
         auto* page = new QWidget();
         auto* lay = new QVBoxLayout(page);
-        auto* card = new SectionCardWidget(QStringLiteral("APPEARANCE"), page);
+        auto* card = new SectionCardWidget(LocalizationManager::tr("prefs.card.appearance"), page);
+    sectionCards_.push_back({card, "prefs.card.appearance"});
         auto* form = new QFormLayout();
         form->setSpacing(10);
         cmbTheme_ = new QComboBox(card);
@@ -215,7 +216,8 @@ void PreferencesWorkspace::setupUi() {
     {
         auto* page = new QWidget();
         auto* lay = new QVBoxLayout(page);
-        auto* card = new SectionCardWidget(QStringLiteral("USER INTERFACE"), page);
+        auto* card = new SectionCardWidget(LocalizationManager::tr("prefs.card.ui"), page);
+    sectionCards_.push_back({card, "prefs.card.ui"});
         chkCircularProgressBar_ = new QCheckBox(
             QStringLiteral("Show circular reading progress badge on library covers"), card);
         chkSmartRename_ = new QCheckBox(
@@ -253,7 +255,8 @@ void PreferencesWorkspace::setupUi() {
         auto* lay = new QVBoxLayout(page);
         lay->setSpacing(16);
 
-        auto* layoutCard = new SectionCardWidget(QStringLiteral("PAGE LAYOUT & CANVAS"), page);
+        auto* layoutCard = new SectionCardWidget(LocalizationManager::tr("prefs.card.page_layout"), page);
+    sectionCards_.push_back({layoutCard, "prefs.card.page_layout"});
         auto* layoutForm = new QFormLayout();
         layoutForm->setSpacing(10);
         cmbDefaultPageLayout_ = new QComboBox(layoutCard);
@@ -271,7 +274,8 @@ void PreferencesWorkspace::setupUi() {
         layoutForm->addRow(QStringLiteral("Reader Canvas Background:"), btnReaderBgColor_);
         layoutCard->contentLayout()->addLayout(layoutForm);
 
-        auto* card = new SectionCardWidget(QStringLiteral("READER BEHAVIOUR & TOOLS"), page);
+        auto* card = new SectionCardWidget(LocalizationManager::tr("prefs.card.reader_behaviour"), page);
+    sectionCards_.push_back({card, "prefs.card.reader_behaviour"});
         chkDefaultMangaMode_ = new QCheckBox(QStringLiteral("Manga mode default (Right-to-Left)"), card);
         chkSmartWideSpread_ = new QCheckBox(QStringLiteral("Smart wide-spread detection"), card);
         chkAutoCropBorders_ = new QCheckBox(QStringLiteral("Auto-crop whitespace borders"), card);
@@ -317,7 +321,8 @@ void PreferencesWorkspace::setupUi() {
         auto* lay = new QVBoxLayout(page);
         lay->setSpacing(16);
 
-        auto* ramCard = new SectionCardWidget(QStringLiteral("RAM PAGE CACHE & LIBRARY"), page);
+        auto* ramCard = new SectionCardWidget(LocalizationManager::tr("prefs.card.ram_cache"), page);
+    sectionCards_.push_back({ramCard, "prefs.card.ram_cache"});
         auto* ramForm = new QFormLayout();
         auto* ramRow = new QHBoxLayout();
         sldRamLimitMb_ = new QSlider(Qt::Horizontal, ramCard);
@@ -337,7 +342,8 @@ void PreferencesWorkspace::setupUi() {
         ramCard->contentLayout()->addWidget(chkAutoSyncFolders_);
         ramCard->contentLayout()->addWidget(chkUnpluggedDriveGuard_);
 
-        auto* coverCard = new SectionCardWidget(QStringLiteral("COVER CACHE STORAGE"), page);
+        auto* coverCard = new SectionCardWidget(LocalizationManager::tr("prefs.card.cover_cache"), page);
+    sectionCards_.push_back({coverCard, "prefs.card.cover_cache"});
         rbMode1Ram_ = new QRadioButton(
             QStringLiteral("Mode 1 - Zero-Disk RAM LRU (extracts visible covers on demand)"),
             coverCard);
@@ -378,7 +384,8 @@ void PreferencesWorkspace::setupUi() {
         auto* lay = new QVBoxLayout(page);
         lay->setSpacing(16);
 
-        auto* card = new SectionCardWidget(QStringLiteral("FILE FORMAT DEFAULTS"), page);
+        auto* card = new SectionCardWidget(LocalizationManager::tr("prefs.card.file_formats"), page);
+    sectionCards_.push_back({card, "prefs.card.file_formats"});
         auto* fmtForm = new QFormLayout();
         fmtForm->setSpacing(10);
         cmbPdfReaderDpi_ = new QComboBox(card);
@@ -400,7 +407,8 @@ void PreferencesWorkspace::setupUi() {
         card->contentLayout()->addLayout(fmtForm);
         card->contentLayout()->addWidget(chkNaturalSort_);
 
-        auto* scanCard = new SectionCardWidget(QStringLiteral("SCANNED LIBRARY FORMATS"), page);
+        auto* scanCard = new SectionCardWidget(LocalizationManager::tr("prefs.card.scanned_formats"), page);
+    sectionCards_.push_back({scanCard, "prefs.card.scanned_formats"});
         auto* scanGrid = new QGridLayout();
         chkFmtCbz_ = new QCheckBox(QStringLiteral(".cbz / .zip"), scanCard);
         chkFmtCbr_ = new QCheckBox(QStringLiteral(".cbr / .rar"), scanCard);
@@ -433,7 +441,8 @@ void PreferencesWorkspace::setupUi() {
         auto* lay = new QVBoxLayout(page);
         lay->setSpacing(16);
 
-        auto* card = new SectionCardWidget(QStringLiteral("EXTERNAL COMPANION APP"), page);
+        auto* card = new SectionCardWidget(LocalizationManager::tr("prefs.card.external_app"), page);
+    sectionCards_.push_back({card, "prefs.card.external_app"});
         auto* form = new QFormLayout();
         form->setSpacing(10);
         auto* row = new QHBoxLayout();
@@ -457,7 +466,8 @@ void PreferencesWorkspace::setupUi() {
     {
         auto* page = new QWidget();
         auto* lay = new QVBoxLayout(page);
-        auto* card = new SectionCardWidget(QStringLiteral("KEYBOARD SHORTCUTS"), page);
+        auto* card = new SectionCardWidget(LocalizationManager::tr("prefs.card.shortcuts"), page);
+    sectionCards_.push_back({card, "prefs.card.shortcuts"});
         auto* grid = new QGridLayout();
         grid->setSpacing(8);
         const mavira::data::config::AppSettings defaults;
@@ -493,7 +503,8 @@ void PreferencesWorkspace::setupUi() {
         auto* lay = new QVBoxLayout(page);
         lay->setSpacing(16);
 
-        auto* diagCard = new SectionCardWidget(QStringLiteral("DIAGNOSTICS & MAINTENANCE"), page);
+        auto* diagCard = new SectionCardWidget(LocalizationManager::tr("prefs.card.diagnostics"), page);
+    sectionCards_.push_back({diagCard, "prefs.card.diagnostics"});
         auto* diagForm = new QFormLayout();
         diagForm->setSpacing(10);
         cmbLogLevel_ = new QComboBox(diagCard);
@@ -518,7 +529,8 @@ void PreferencesWorkspace::setupUi() {
         diagCard->contentLayout()->addLayout(actRow);
         diagCard->contentLayout()->addWidget(lblAdvancedStatus_);
 
-        auto* card = new SectionCardWidget(QStringLiteral("PORTABLE DATA PATHS"), page);
+        auto* card = new SectionCardWidget(LocalizationManager::tr("prefs.card.portable_paths"), page);
+    sectionCards_.push_back({card, "prefs.card.portable_paths"});
         auto* pathsLbl = new QLabel(
             QStringLiteral("Settings JSON: %1\nDatabase: %2\nOffline Cache: %3")
                 .arg(QString::fromStdWString(portablePaths_.settingsPath.native()))
@@ -825,10 +837,25 @@ void PreferencesWorkspace::retranslateUi() {
         }
     }
 
+    for (const auto& sc : sectionCards_) {
+        if (sc.card != nullptr && sc.key != nullptr) {
+            sc.card->setTabTitle(LocalizationManager::tr(sc.key));
+        }
+    }
+
     if (lblTheme_) lblTheme_->setText(LocalizationManager::tr("prefs.lbl.theme"));
     if (lblLanguage_) lblLanguage_->setText(LocalizationManager::tr("prefs.lbl.language"));
     if (lblUiScale_) lblUiScale_->setText(LocalizationManager::tr("prefs.lbl.ui_scale"));
     if (lblCardDensity_) lblCardDensity_->setText(LocalizationManager::tr("prefs.lbl.card_density"));
+
+    if (btnBuildPack_) btnBuildPack_->setText(LocalizationManager::tr("prefs.btn.build_pack"));
+    if (btnPurgeCache_) btnPurgeCache_->setText(LocalizationManager::tr("prefs.btn.purge_cache"));
+    if (btnClearOfflineCache_) btnClearOfflineCache_->setText(LocalizationManager::tr("prefs.btn.clear_offline"));
+    if (btnBrowseExternalApp_) btnBrowseExternalApp_->setText(LocalizationManager::tr("prefs.btn.browse"));
+    if (btnResetShortcuts_) btnResetShortcuts_->setText(LocalizationManager::tr("prefs.btn.reset_shortcuts"));
+    if (btnOpenDataFolder_) btnOpenDataFolder_->setText(LocalizationManager::tr("prefs.btn.open_data_folder"));
+    if (btnOptimizeDb_) btnOptimizeDb_->setText(LocalizationManager::tr("prefs.btn.optimize_db"));
+    if (btnResetPrefsAdvanced_) btnResetPrefsAdvanced_->setText(LocalizationManager::tr("prefs.btn.reset_prefs"));
 }
 
 } // namespace mavira::ui

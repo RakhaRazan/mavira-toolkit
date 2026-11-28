@@ -166,6 +166,7 @@ signals:
     void scanProgress(int processedItems, int totalItems, const QString& currentFolder);
     void scanFinished(int indexedCount, int prunedCount, bool cancelled);
     void libraryUpdated();
+    void aboutToDeleteComic(std::int64_t comicId, const std::wstring& filePath);
     void comicRemoved(std::int64_t comicId, const std::wstring& filePath);
     void folderOnlineStateChanged(qint64 folderId, const QString& folderPath, bool isOnline);
     void offlinePinProgress(qint64 comicId, qint64 bytesCopied, qint64 totalBytes);

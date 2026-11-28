@@ -175,6 +175,8 @@ $UnusedDllPatterns = @(
     "Qt6Xml*.dll",
     "Qt6Test*.dll",
     "d3dcompiler_*.dll",
+    "dxcompiler.dll",
+    "dxil.dll",
     "opengl32sw.dll"
 )
 foreach ($pattern in $UnusedDllPatterns) {

@@ -19,6 +19,7 @@
 #include <vector>
 
 class QCloseEvent;
+class QComboBox;
 class QEvent;
 class QLabel;
 class QLineEdit;
@@ -28,6 +29,7 @@ class QProgressBar;
 class QPushButton;
 class QSplitter;
 class QStackedWidget;
+class QVBoxLayout;
 class QWidget;
 
 namespace mavira::ui {
@@ -97,9 +99,9 @@ public:
     [[nodiscard]] LibraryView* libraryView() const noexcept { return libraryView_; }
     [[nodiscard]] mavira::app::ApplicationCore* applicationCore() const noexcept { return appCore_; }
     [[nodiscard]] mavira::app::ReaderController* readerController() const noexcept { return readerController_; }
-    [[nodiscard]] ReaderViewport* readerViewport() const noexcept { return readerViewport_; }
-    [[nodiscard]] ToolWorkspaceWidget* toolWorkspace() const noexcept { return toolWorkspace_; }
-    [[nodiscard]] PreferencesWorkspace* preferencesWorkspace() const noexcept { return prefsWorkspace_; }
+    [[nodiscard]] ReaderViewport* readerViewport();
+    [[nodiscard]] ToolWorkspaceWidget* toolWorkspace();
+    [[nodiscard]] PreferencesWorkspace* preferencesWorkspace();
     [[nodiscard]] QLineEdit* searchBar() const noexcept { return searchEdit_; }
     [[nodiscard]] QListWidget* continueReadingList() const noexcept { return continueReadingList_; }
     [[nodiscard]] const std::vector<mavira::data::db::ComicRecord>& displayedComics() const noexcept {
@@ -152,6 +154,11 @@ private:
     void populateLibraryTable(
         const std::vector<mavira::data::db::ComicRecord>& comics,
         const QString& viewTitle);
+    void applySortAndStatusFilter();
+    [[nodiscard]] std::vector<std::filesystem::path> selectedLibraryPaths() const;
+    ReaderViewport* ensureReaderViewport();
+    ToolWorkspaceWidget* ensureToolWorkspace();
+    PreferencesWorkspace* ensurePreferencesWorkspace();
     std::vector<mavira::data::db::ComicRecord> evaluateSmartViewFilter(const QString& queryJson);
 
     mavira::data::db::DatabaseManager* db_{nullptr};
@@ -179,6 +186,8 @@ private:
     QPushButton* btnMergeComics_{nullptr};
     QPushButton* btnRandomUnread_{nullptr};
     QLineEdit* searchEdit_{nullptr};
+    QComboBox* cmbSortBy_{nullptr};
+    QComboBox* cmbStatusFilter_{nullptr};
     QPushButton* btnLibraryView_{nullptr};
     QPushButton* btnReaderView_{nullptr};
     QPushButton* btnSettings_{nullptr};
@@ -199,12 +208,15 @@ private:
 
     // Reader Page shell
     QWidget* readerPage_{nullptr};
+    QVBoxLayout* readerLayout_{nullptr};
     QLabel* readerTitleLabel_{nullptr};
     QPushButton* btnBackToLibrary_{nullptr};
     mavira::app::ReaderController* readerController_{nullptr};
     ReaderViewport* readerViewport_{nullptr};
 
-    // Full-area Tool & Preferences Workspaces
+    // Full-area Tool & Preferences Workspaces (lazy-instantiated on first use)
+    QWidget* toolWorkspaceHost_{nullptr};
+    QWidget* prefsWorkspaceHost_{nullptr};
     ToolWorkspaceWidget* toolWorkspace_{nullptr};
     PreferencesWorkspace* prefsWorkspace_{nullptr};
 
@@ -212,8 +224,11 @@ private:
     QLabel* statusLabel_{nullptr};
     QProgressBar* scanProgressBar_{nullptr};
 
+    std::vector<mavira::data::db::ComicRecord> unfilteredComics_{};
     std::vector<mavira::data::db::ComicRecord> displayedComics_{};
     std::vector<mavira::data::db::ComicRecord> continueReadingComics_{};
+    QString currentViewTitle_{};
+    bool isAllComicsView_{true};
 };
 
 } // namespace mavira::ui

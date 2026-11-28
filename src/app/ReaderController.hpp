@@ -171,6 +171,8 @@ public:
     void flushReadingProgress();
 
     [[nodiscard]] bool isPageCached(std::size_t pageIndex) const;
+    [[nodiscard]] std::shared_ptr<const mavira::core::ImageFrame> cachedPageFrame(
+        std::size_t pageIndex) const;
     [[nodiscard]] std::size_t activeTaskCount() const;
     [[nodiscard]] std::uint64_t cancelledTaskCount() const noexcept {
         return cancelledTaskCount_.load(std::memory_order_relaxed);
@@ -200,6 +202,7 @@ private:
         std::unique_ptr<mavira::core::archive::IArchiveReader> reader{};
         std::mutex ioMutex{};
         bool isPdf{false};
+        bool isSequential{false};
     };
 
     struct InFlightTask {
@@ -220,6 +223,8 @@ private:
     void tryComposeAndEmitCurrentPage();
     void scheduleProgressSave();
     void loadBookmarks();
+    void persistComicReadingProfile();
+    void applyPerComicProfile(int readingMode, int readingDir, int fitMode);
 
     mavira::data::db::DatabaseManager* db_{nullptr};
     std::unique_ptr<mavira::core::cache::CacheManager> ownedCache_{};
@@ -243,6 +248,12 @@ private:
     mavira::core::rendering::ReadingMode readingMode_{mavira::core::rendering::ReadingMode::SinglePage};
     mavira::core::rendering::ReadingDirection readingDirection_{mavira::core::rendering::ReadingDirection::RTL};
     mavira::core::rendering::FitMode fitMode_{mavira::core::rendering::FitMode::FitScreen};
+    mavira::core::rendering::ReadingMode globalDefaultMode_{mavira::core::rendering::ReadingMode::SinglePage};
+    mavira::core::rendering::ReadingDirection globalDefaultDirection_{mavira::core::rendering::ReadingDirection::RTL};
+    mavira::core::rendering::FitMode globalDefaultFitMode_{mavira::core::rendering::FitMode::FitScreen};
+    bool applyingProfileOrSettings_{false};
+    bool hasPerComicProfile_{false};
+    bool pendingAutoWebtoonDetect_{false};
     bool smartWideSpread_{true};
     bool autoCropBorders_{false};
     float zoomFactor_{1.0f};

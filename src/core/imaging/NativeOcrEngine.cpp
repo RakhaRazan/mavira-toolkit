@@ -528,6 +528,76 @@ void ensureWinRtApartment() noexcept {
     return out;
 }
 
+[[nodiscard]] bool isCjkCodepoint(std::uint32_t cp) noexcept {
+    return (cp >= 0x3000u && cp <= 0x303Fu) || // CJK Symbols and Punctuation
+           (cp >= 0x3040u && cp <= 0x309Fu) || // Hiragana
+           (cp >= 0x30A0u && cp <= 0x30FFu) || // Katakana
+           (cp >= 0x3400u && cp <= 0x4DBFu) || // CJK Ext A
+           (cp >= 0x4E00u && cp <= 0x9FFFu) || // CJK Unified Ideographs
+           (cp >= 0xAC00u && cp <= 0xD7AFu) || // Hangul Syllables
+           (cp >= 0xFF00u && cp <= 0xFFEFu);   // Halfwidth/Fullwidth Forms
+}
+
+[[nodiscard]] std::uint32_t decodeUtf8At(std::string_view s, std::size_t& pos) noexcept {
+    const unsigned char b0 = static_cast<unsigned char>(s[pos]);
+    if (b0 < 0x80u) {
+        ++pos;
+        return b0;
+    }
+    if ((b0 & 0xE0u) == 0xC0u && pos + 1 < s.size()) {
+        const std::uint32_t cp =
+            ((b0 & 0x1Fu) << 6) | (static_cast<unsigned char>(s[pos + 1]) & 0x3Fu);
+        pos += 2;
+        return cp;
+    }
+    if ((b0 & 0xF0u) == 0xE0u && pos + 2 < s.size()) {
+        const std::uint32_t cp =
+            ((b0 & 0x0Fu) << 12) |
+            ((static_cast<unsigned char>(s[pos + 1]) & 0x3Fu) << 6) |
+            (static_cast<unsigned char>(s[pos + 2]) & 0x3Fu);
+        pos += 3;
+        return cp;
+    }
+    if ((b0 & 0xF8u) == 0xF0u && pos + 3 < s.size()) {
+        const std::uint32_t cp =
+            ((b0 & 0x07u) << 18) |
+            ((static_cast<unsigned char>(s[pos + 1]) & 0x3Fu) << 12) |
+            ((static_cast<unsigned char>(s[pos + 2]) & 0x3Fu) << 6) |
+            (static_cast<unsigned char>(s[pos + 3]) & 0x3Fu);
+        pos += 4;
+        return cp;
+    }
+    ++pos;
+    return b0;
+}
+
+[[nodiscard]] std::string normalizeCjkSpaces(std::string_view input) {
+    struct CpSpan {
+        std::uint32_t cp;
+        std::size_t start;
+        std::size_t end;
+    };
+    std::vector<CpSpan> spans;
+    spans.reserve(input.size());
+    std::size_t p = 0;
+    while (p < input.size()) {
+        const std::size_t s = p;
+        const std::uint32_t cp = decodeUtf8At(input, p);
+        spans.push_back(CpSpan{cp, s, p});
+    }
+
+    std::string out;
+    out.reserve(input.size());
+    for (std::size_t i = 0; i < spans.size(); ++i) {
+        if (spans[i].cp == ' ' && i > 0 && i + 1 < spans.size() &&
+            isCjkCodepoint(spans[i - 1].cp) && isCjkCodepoint(spans[i + 1].cp)) {
+            continue;
+        }
+        out.append(input.substr(spans[i].start, spans[i].end - spans[i].start));
+    }
+    return out;
+}
+
 } // namespace
 
 std::string NativeOcrEngine::cleanOcrText(
@@ -686,36 +756,100 @@ Result<OcrResult> NativeOcrEngine::recognizeFrame(
 
         OcrResult out;
         out.languageTag = std::move(resolvedTag);
-        out.text = cleanOcrText(
-            winrt::to_string(winrtResult.Text()),
-            filterNoiseSymbols,
-            normalizeAllCaps);
+        const std::string lowTag = toLowerAscii(out.languageTag);
+        const bool isCjkLang = lowTag.starts_with("ja") || lowTag.starts_with("zh");
         if (const auto angle = winrtResult.TextAngle()) {
             out.textAngle = angle.Value();
         }
 
         const auto linesView = winrtResult.Lines();
         out.lines.reserve(static_cast<std::size_t>(linesView.Size()));
+        std::size_t verticalLineCount = 0;
+        float totalLineWidth = 0.0f;
+
         for (const auto& line : linesView) {
             OcrLine outLine;
             outLine.text = cleanOcrText(
                 winrt::to_string(line.Text()),
                 filterNoiseSymbols,
                 normalizeAllCaps);
+            if (isCjkLang) {
+                outLine.text = normalizeCjkSpaces(outLine.text);
+            }
             if (outLine.text.empty()) {
                 continue;
             }
             const auto wordsView = line.Words();
             outLine.words.reserve(static_cast<std::size_t>(wordsView.Size()));
+            float minX = 1e9f;
+            float minY = 1e9f;
+            float maxX = -1e9f;
+            float maxY = -1e9f;
             for (const auto& word : wordsView) {
                 OcrWord outWord;
                 outWord.text = winrt::to_string(word.Text());
                 const auto rect = word.BoundingRect();
                 outWord.bounds = OcrBoundingRect{
                     rect.X, rect.Y, rect.Width, rect.Height};
+                minX = (std::min)(minX, rect.X);
+                minY = (std::min)(minY, rect.Y);
+                maxX = (std::max)(maxX, rect.X + rect.Width);
+                maxY = (std::max)(maxY, rect.Y + rect.Height);
                 outLine.words.push_back(std::move(outWord));
             }
+            if (!outLine.words.empty()) {
+                const float lineW = maxX - minX;
+                const float lineH = maxY - minY;
+                totalLineWidth += lineW;
+                if (lineH > lineW * 1.2f) {
+                    ++verticalLineCount;
+                }
+            }
             out.lines.push_back(std::move(outLine));
+        }
+
+        const bool isVerticalTategaki =
+            isCjkLang && !out.lines.empty() &&
+            (verticalLineCount * 2 >= out.lines.size());
+
+        if (isVerticalTategaki) {
+            const float avgW = totalLineWidth / static_cast<float>(out.lines.size());
+            const float colTol = (std::max)(avgW * 0.6f, 12.0f);
+            auto lineBounds = [](const OcrLine& l) -> std::pair<float, float> {
+                if (l.words.empty()) return {0.0f, 0.0f};
+                float mx = 1e9f;
+                float my = 1e9f;
+                for (const auto& w : l.words) {
+                    mx = (std::min)(mx, w.bounds.x);
+                    my = (std::min)(my, w.bounds.y);
+                }
+                return {mx, my};
+            };
+            std::sort(out.lines.begin(), out.lines.end(), [&](const OcrLine& a, const OcrLine& b) {
+                const auto [ax, ay] = lineBounds(a);
+                const auto [bx, by] = lineBounds(b);
+                if (std::abs(ax - bx) > colTol) {
+                    return ax > bx; // Right-to-left columns for Japanese Tategaki
+                }
+                return ay < by;     // Top-to-bottom within the same column
+            });
+
+            std::string rebuilt;
+            for (std::size_t i = 0; i < out.lines.size(); ++i) {
+                if (i > 0) {
+                    rebuilt.push_back('\n');
+                }
+                rebuilt += out.lines[i].text;
+            }
+            out.text = std::move(rebuilt);
+        } else {
+            out.text = cleanOcrText(
+                winrt::to_string(winrtResult.Text()),
+                filterNoiseSymbols,
+                normalizeAllCaps);
+            if (isCjkLang) {
+                out.text = normalizeCjkSpaces(out.text);
+            }
         }
 
         return Result<OcrResult>::ok(std::move(out));

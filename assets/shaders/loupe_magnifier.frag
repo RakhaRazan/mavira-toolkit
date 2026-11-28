@@ -8,6 +8,7 @@ uniform vec2 uCursorUv;
 uniform vec2 uQuadSizePx;
 uniform float uLoupeRadiusPx;
 uniform float uLoupeZoom;
+uniform float uBorderWidthPx;
 
 out vec4 fragColor;
 
@@ -15,7 +16,7 @@ void main() {
     vec2 deltaPx = (vTexCoord - uCursorUv) * uQuadSizePx;
     float distPx = length(deltaPx);
 
-    const float borderWidthPx = 2.0;
+    float borderWidthPx = max(uBorderWidthPx, 1.0);
     if (distPx > uLoupeRadiusPx + borderWidthPx) {
         discard;
     }

@@ -12,6 +12,7 @@
 #include <QAction>
 #include <QApplication>
 #include <QCloseEvent>
+#include <QComboBox>
 #include <QDialog>
 #include <QDialogButtonBox>
 #include <QDir>
@@ -38,6 +39,7 @@
 #include <QPlainTextEdit>
 #include <QProgressBar>
 #include <QPushButton>
+#include <QShortcut>
 #include <QSplitter>
 #include <QStackedWidget>
 #include <QStatusBar>
@@ -171,6 +173,16 @@ MainWindow::MainWindow(
     if (libraryManager_ != nullptr) {
         connect(
             libraryManager_,
+            &mavira::app::LibraryManager::aboutToDeleteComic,
+            this,
+            [this](std::int64_t comicId, const std::wstring& filePath) {
+                if (readerController_ != nullptr) {
+                    (void)readerController_->closeIfMatching(comicId, filePath);
+                }
+            },
+            Qt::DirectConnection);
+        connect(
+            libraryManager_,
             &mavira::app::LibraryManager::comicRemoved,
             this,
             [this](std::int64_t comicId, const std::wstring& filePath) {
@@ -248,9 +260,9 @@ void MainWindow::setupMenuBar() {
 
     // File
     fileMenu_ = mb->addMenu(LocalizationManager::tr("menu.file"));
-    fileMenu_->addAction(QStringLiteral("Open File..."), QKeySequence::Open, this, &MainWindow::promptOpenComicFile);
-    fileMenu_->addAction(QStringLiteral("Add Watched Folder..."), QKeySequence(QStringLiteral("Ctrl+Shift+O")), this, &MainWindow::promptAddWatchedFolder);
-    fileMenu_->addAction(QStringLiteral("Remove Unavailable Entries"), this, [this]() {
+    fileMenu_->addAction(LocalizationManager::tr("menu.file.open_file"), QKeySequence::Open, this, &MainWindow::promptOpenComicFile);
+    fileMenu_->addAction(LocalizationManager::tr("menu.file.add_folder"), QKeySequence(QStringLiteral("Ctrl+Shift+O")), this, &MainWindow::promptAddWatchedFolder);
+    fileMenu_->addAction(LocalizationManager::tr("menu.file.prune_unavailable"), this, [this]() {
         if (libraryManager_ != nullptr) {
             libraryManager_->pruneOrphansAsync();
             if (statusLabel_ != nullptr) {
@@ -259,67 +271,67 @@ void MainWindow::setupMenuBar() {
         }
     });
     fileMenu_->addSeparator();
-    fileMenu_->addAction(QStringLiteral("E&xit"), QKeySequence::Quit, this, &QWidget::close);
+    fileMenu_->addAction(LocalizationManager::tr("menu.file.exit"), QKeySequence::Quit, this, &QWidget::close);
 
     // Edit
     editMenu_ = mb->addMenu(LocalizationManager::tr("menu.edit"));
-    editMenu_->addAction(QStringLiteral("Select All"), QKeySequence::SelectAll, this, [this]() {
+    editMenu_->addAction(LocalizationManager::tr("menu.edit.select_all"), QKeySequence::SelectAll, this, [this]() {
         if (libraryView_ != nullptr) {
             libraryView_->selectAll();
         }
     });
-    editMenu_->addAction(QStringLiteral("Remove Selected from Library"), QKeySequence::Delete, this, [this]() {
+    editMenu_->addAction(LocalizationManager::tr("menu.edit.remove_selected"), QKeySequence::Delete, this, [this]() {
         if (libraryView_ != nullptr) {
             libraryView_->removeSelectedFromLibrary(false);
         }
     });
-    editMenu_->addAction(QStringLiteral("Delete Selected to Recycle Bin"), QKeySequence(QStringLiteral("Shift+Del")), this, [this]() {
+    editMenu_->addAction(LocalizationManager::tr("menu.edit.delete_selected"), QKeySequence(QStringLiteral("Shift+Del")), this, [this]() {
         if (libraryView_ != nullptr) {
             libraryView_->removeSelectedFromLibrary(true);
         }
     });
     editMenu_->addSeparator();
-    editMenu_->addAction(QStringLiteral("Preferences / Settings..."), QKeySequence(QStringLiteral("Ctrl+,")), this, &MainWindow::openSettingsDialog);
+    editMenu_->addAction(LocalizationManager::tr("menu.edit.preferences"), QKeySequence(QStringLiteral("Ctrl+,")), this, &MainWindow::openSettingsDialog);
 
     // Tools
     toolsMenu_ = mb->addMenu(LocalizationManager::tr("menu.tools"));
 
-    QMenu* convertMenu = toolsMenu_->addMenu(QStringLiteral("Convert"));
-    convertMenu->addAction(QStringLiteral("Comic Books (CBR/PDF -> CBZ/PDF)..."), this, &MainWindow::openConvertComicDialog);
-    convertMenu->addAction(QStringLiteral("Images (JPG/PNG/WEBP)..."), this, &MainWindow::openBatchConvertImagesDialog);
+    QMenu* convertMenu = toolsMenu_->addMenu(LocalizationManager::tr("menu.tools.convert"));
+    convertMenu->addAction(LocalizationManager::tr("menu.tools.convert_comics"), this, &MainWindow::openConvertComicDialog);
+    convertMenu->addAction(LocalizationManager::tr("menu.tools.convert_images"), this, &MainWindow::openBatchConvertImagesDialog);
 
-    QMenu* createMenu = toolsMenu_->addMenu(QStringLiteral("Create"));
-    createMenu->addAction(QStringLiteral("Comic Book from Folder (CBZ/PDF)..."), this, &MainWindow::openCreateComicDialog);
+    QMenu* createMenu = toolsMenu_->addMenu(LocalizationManager::tr("menu.tools.create"));
+    createMenu->addAction(LocalizationManager::tr("menu.tools.create_comic"), this, &MainWindow::openCreateComicDialog);
 
-    QMenu* extractMenu = toolsMenu_->addMenu(QStringLiteral("Extract"));
-    extractMenu->addAction(QStringLiteral("Pages from Comic Book..."), this, &MainWindow::openExtractPagesDialog);
-    extractMenu->addAction(QStringLiteral("Text from Image (Native OCR)..."), this, &MainWindow::openNativeOcrDialog);
+    QMenu* extractMenu = toolsMenu_->addMenu(LocalizationManager::tr("menu.tools.extract"));
+    extractMenu->addAction(LocalizationManager::tr("menu.tools.extract_pages"), this, &MainWindow::openExtractPagesDialog);
+    extractMenu->addAction(LocalizationManager::tr("menu.tools.extract_ocr"), this, &MainWindow::openNativeOcrDialog);
 
-    QMenu* mergeMenu = toolsMenu_->addMenu(QStringLiteral("Merge"));
-    mergeMenu->addAction(QStringLiteral("Merge Multiple Comics (CBR/CBZ/PDF)..."), this, [this]() {
+    QMenu* mergeMenu = toolsMenu_->addMenu(LocalizationManager::tr("menu.tools.merge"));
+    mergeMenu->addAction(LocalizationManager::tr("menu.tools.merge_comics"), this, [this]() {
         openMergeComicsDialog();
     });
 
     // View
     viewMenu_ = mb->addMenu(LocalizationManager::tr("menu.view"));
-    viewMenu_->addAction(QStringLiteral("Library Grid"), this, [this]() {
+    viewMenu_->addAction(LocalizationManager::tr("menu.view.library_grid"), this, [this]() {
         switchToView(ActiveViewMode::Library);
     });
-    viewMenu_->addAction(QStringLiteral("Folder / Series Browser"), this, [this]() {
+    viewMenu_->addAction(LocalizationManager::tr("menu.view.sidebar_browser"), this, [this]() {
         if (sidebar_ != nullptr) {
             sidebar_->setVisible(!sidebar_->isVisible());
         }
     });
-    viewMenu_->addAction(QStringLiteral("Reader View"), this, [this]() {
+    viewMenu_->addAction(LocalizationManager::tr("menu.view.reader_view"), this, [this]() {
         switchToView(ActiveViewMode::Reader);
     });
     viewMenu_->addSeparator();
-    viewMenu_->addAction(QStringLiteral("Toggle Dark / Light Theme"), this, &MainWindow::toggleTheme);
+    viewMenu_->addAction(LocalizationManager::tr("menu.view.toggle_theme"), this, &MainWindow::toggleTheme);
 
     // Help
     helpMenu_ = mb->addMenu(LocalizationManager::tr("menu.help"));
-    helpMenu_->addAction(QStringLiteral("Keyboard Shortcuts"), this, &MainWindow::openShortcutsDialog);
-    helpMenu_->addAction(QStringLiteral("Open-Source Licenses && About MAVIRA"), this, &MainWindow::openAboutDialog);
+    helpMenu_->addAction(LocalizationManager::tr("menu.help.shortcuts"), this, &MainWindow::openShortcutsDialog);
+    helpMenu_->addAction(LocalizationManager::tr("menu.help.about"), this, &MainWindow::openAboutDialog);
 }
 
 void MainWindow::setupUi() {
@@ -355,6 +367,20 @@ void MainWindow::setupUi() {
         QStringLiteral("Search library (title, series, author, tags, path)..."));
     searchEdit_->setClearButtonEnabled(true);
 
+    cmbSortBy_ = new QComboBox(topBar);
+    cmbSortBy_->setObjectName(QStringLiteral("CmbSortBy"));
+    cmbSortBy_->addItem(LocalizationManager::tr("sort.title_az"), QStringLiteral("title_az"));
+    cmbSortBy_->addItem(LocalizationManager::tr("sort.recently_added"), QStringLiteral("added_desc"));
+    cmbSortBy_->addItem(LocalizationManager::tr("sort.last_read"), QStringLiteral("last_read_desc"));
+    cmbSortBy_->addItem(LocalizationManager::tr("sort.file_size"), QStringLiteral("size_desc"));
+
+    cmbStatusFilter_ = new QComboBox(topBar);
+    cmbStatusFilter_->setObjectName(QStringLiteral("CmbStatusFilter"));
+    cmbStatusFilter_->addItem(LocalizationManager::tr("filter.all"), QStringLiteral("all"));
+    cmbStatusFilter_->addItem(LocalizationManager::tr("filter.unread"), QStringLiteral("unread"));
+    cmbStatusFilter_->addItem(LocalizationManager::tr("filter.in_progress"), QStringLiteral("in_progress"));
+    cmbStatusFilter_->addItem(LocalizationManager::tr("filter.finished"), QStringLiteral("finished"));
+
     btnLibraryView_ = new QPushButton(QStringLiteral("Library"), topBar);
     btnLibraryView_->setObjectName(QStringLiteral("BtnLibraryView"));
     btnLibraryView_->setCheckable(true);
@@ -372,6 +398,8 @@ void MainWindow::setupUi() {
     topLayout->addWidget(btnOpenFile_);
     topLayout->addWidget(btnRandomUnread_);
     topLayout->addWidget(searchEdit_, 1);
+    topLayout->addWidget(cmbSortBy_);
+    topLayout->addWidget(cmbStatusFilter_);
     topLayout->addWidget(btnLibraryView_);
     topLayout->addWidget(btnReaderView_);
     topLayout->addWidget(btnSettings_);
@@ -428,12 +456,12 @@ void MainWindow::setupUi() {
     libLayout->addWidget(viewHeaderLabel_);
     libLayout->addWidget(libraryView_, 1);
 
-    // --- Page 1: GPU-Accelerated Reader View ---
+    // --- Page 1: GPU-Accelerated Reader View (ReaderViewport lazy-instantiated on first open) ---
     readerPage_ = new QWidget(centralStack_);
     readerPage_->setObjectName(QStringLiteral("ReaderPage"));
-    auto* readerLayout = new QVBoxLayout(readerPage_);
-    readerLayout->setContentsMargins(0, 0, 0, 0);
-    readerLayout->setSpacing(0);
+    readerLayout_ = new QVBoxLayout(readerPage_);
+    readerLayout_->setContentsMargins(0, 0, 0, 0);
+    readerLayout_->setSpacing(0);
 
     auto* readerTopWidget = new QWidget(readerPage_);
     readerTopWidget->setObjectName(QStringLiteral("ReaderTopBar"));
@@ -449,22 +477,22 @@ void MainWindow::setupUi() {
     readerTopBar->addWidget(btnBackToLibrary_);
     readerTopBar->addWidget(readerTitleLabel_, 1);
 
-    readerViewport_ = new ReaderViewport(readerController_, readerPage_);
-    readerViewport_->setObjectName(QStringLiteral("ReaderViewport"));
+    readerLayout_->addWidget(readerTopWidget);
 
-    readerLayout->addWidget(readerTopWidget);
-    readerLayout->addWidget(readerViewport_, 1);
+    toolWorkspaceHost_ = new QWidget(centralStack_);
+    auto* toolHostLayout = new QVBoxLayout(toolWorkspaceHost_);
+    toolHostLayout->setContentsMargins(0, 0, 0, 0);
+    toolHostLayout->setSpacing(0);
 
-    const auto portablePaths = (libraryManager_ != nullptr)
-        ? libraryManager_->portablePaths()
-        : mavira::data::fs::FileManager::resolvePortablePaths();
-    toolWorkspace_ = new ToolWorkspaceWidget(settingsManager_, centralStack_);
-    prefsWorkspace_ = new PreferencesWorkspace(db_, cacheManager_, portablePaths, centralStack_);
+    prefsWorkspaceHost_ = new QWidget(centralStack_);
+    auto* prefsHostLayout = new QVBoxLayout(prefsWorkspaceHost_);
+    prefsHostLayout->setContentsMargins(0, 0, 0, 0);
+    prefsHostLayout->setSpacing(0);
 
     centralStack_->addWidget(libraryPage_);
     centralStack_->addWidget(readerPage_);
-    centralStack_->addWidget(toolWorkspace_);
-    centralStack_->addWidget(prefsWorkspace_);
+    centralStack_->addWidget(toolWorkspaceHost_);
+    centralStack_->addWidget(prefsWorkspaceHost_);
 
     mainSplitter_->addWidget(sidebar_);
     mainSplitter_->addWidget(centralStack_);
@@ -497,6 +525,12 @@ void MainWindow::setupUi() {
     connect(btnOpenFile_, &QPushButton::clicked, this, &MainWindow::promptOpenComicFile);
     connect(btnRandomUnread_, &QPushButton::clicked, this, &MainWindow::triggerRandomUnread);
     connect(searchEdit_, &QLineEdit::textChanged, this, &MainWindow::onSearchTextChanged);
+    connect(cmbSortBy_, QOverload<int>::of(&QComboBox::currentIndexChanged), this, [this](int) {
+        applySortAndStatusFilter();
+    });
+    connect(cmbStatusFilter_, QOverload<int>::of(&QComboBox::currentIndexChanged), this, [this](int) {
+        applySortAndStatusFilter();
+    });
 
     connect(btnLibraryView_, &QPushButton::clicked, this, [this]() {
         switchToView(ActiveViewMode::Library);
@@ -505,10 +539,19 @@ void MainWindow::setupUi() {
         switchToView(ActiveViewMode::Reader);
     });
     connect(btnBackToLibrary_, &QPushButton::clicked, this, [this]() {
+        if (isFullScreen()) {
+            showNormal();
+        }
         switchToView(ActiveViewMode::Library);
     });
-    connect(readerViewport_, &ReaderViewport::backToLibraryRequested, this, [this]() {
-        switchToView(ActiveViewMode::Library);
+
+    auto* f11Shortcut = new QShortcut(QKeySequence(Qt::Key_F11), this);
+    connect(f11Shortcut, &QShortcut::activated, this, [this]() {
+        if (isFullScreen()) {
+            showNormal();
+        } else {
+            showFullScreen();
+        }
     });
     if (readerController_ != nullptr) {
         connect(readerController_, &mavira::app::ReaderController::pageChanged, this,
@@ -616,7 +659,43 @@ void MainWindow::setupUi() {
         &LibraryView::toolWorkspaceRequested,
         this,
         &MainWindow::openToolWorkspace);
+}
 
+ReaderViewport* MainWindow::ensureReaderViewport() {
+    if (readerViewport_ != nullptr) {
+        return readerViewport_;
+    }
+    readerViewport_ = new ReaderViewport(readerController_, readerPage_);
+    readerViewport_->setObjectName(QStringLiteral("ReaderViewport"));
+    if (readerLayout_ != nullptr) {
+        readerLayout_->addWidget(readerViewport_, 1);
+    }
+    connect(readerViewport_, &ReaderViewport::backToLibraryRequested, this, [this]() {
+        if (isFullScreen()) {
+            showNormal();
+        }
+        switchToView(ActiveViewMode::Library);
+    });
+    connect(readerViewport_, &ReaderViewport::toggleFullscreenRequested, this, [this]() {
+        if (isFullScreen()) {
+            showNormal();
+        } else {
+            showFullScreen();
+        }
+    });
+    readerViewport_->applySettings(settings_);
+    readerViewport_->retranslateUi();
+    return readerViewport_;
+}
+
+ToolWorkspaceWidget* MainWindow::ensureToolWorkspace() {
+    if (toolWorkspace_ != nullptr) {
+        return toolWorkspace_;
+    }
+    toolWorkspace_ = new ToolWorkspaceWidget(settingsManager_, toolWorkspaceHost_);
+    if (toolWorkspaceHost_ != nullptr && toolWorkspaceHost_->layout() != nullptr) {
+        toolWorkspaceHost_->layout()->addWidget(toolWorkspace_);
+    }
     connect(toolWorkspace_, &ToolWorkspaceWidget::closeRequested, this, [this]() {
         switchToView(previousViewMode_);
     });
@@ -634,7 +713,21 @@ void MainWindow::setupUi() {
                     refreshLibraryView();
                 }
             });
+    toolWorkspace_->retranslateUi();
+    return toolWorkspace_;
+}
 
+PreferencesWorkspace* MainWindow::ensurePreferencesWorkspace() {
+    if (prefsWorkspace_ != nullptr) {
+        return prefsWorkspace_;
+    }
+    const auto portablePaths = (libraryManager_ != nullptr)
+        ? libraryManager_->portablePaths()
+        : mavira::data::fs::FileManager::resolvePortablePaths();
+    prefsWorkspace_ = new PreferencesWorkspace(db_, cacheManager_, portablePaths, prefsWorkspaceHost_);
+    if (prefsWorkspaceHost_ != nullptr && prefsWorkspaceHost_->layout() != nullptr) {
+        prefsWorkspaceHost_->layout()->addWidget(prefsWorkspace_);
+    }
     connect(prefsWorkspace_, &PreferencesWorkspace::backRequested, this, [this]() {
         switchToView(previousViewMode_);
     });
@@ -652,6 +745,20 @@ void MainWindow::setupUi() {
             libraryView_->clearCoverCache();
         }
     });
+    prefsWorkspace_->retranslateUi();
+    return prefsWorkspace_;
+}
+
+ReaderViewport* MainWindow::readerViewport() {
+    return ensureReaderViewport();
+}
+
+ToolWorkspaceWidget* MainWindow::toolWorkspace() {
+    return ensureToolWorkspace();
+}
+
+PreferencesWorkspace* MainWindow::preferencesWorkspace() {
+    return ensurePreferencesWorkspace();
 }
 
 namespace {
@@ -1284,16 +1391,27 @@ void MainWindow::applyUiScale(int percent) {
 }
 
 void MainWindow::retranslateUi() {
-    if (fileMenu_ != nullptr) fileMenu_->setTitle(LocalizationManager::tr("menu.file"));
-    if (editMenu_ != nullptr) editMenu_->setTitle(LocalizationManager::tr("menu.edit"));
-    if (toolsMenu_ != nullptr) toolsMenu_->setTitle(LocalizationManager::tr("menu.tools"));
-    if (viewMenu_ != nullptr) viewMenu_->setTitle(LocalizationManager::tr("menu.view"));
-    if (helpMenu_ != nullptr) helpMenu_->setTitle(LocalizationManager::tr("menu.help"));
+    if (menuBar() != nullptr) {
+        menuBar()->clear();
+        setupMenuBar();
+    }
 
     if (btnAddFolder_ != nullptr) btnAddFolder_->setText(LocalizationManager::tr("btn.add_folder"));
     if (btnOpenFile_ != nullptr) btnOpenFile_->setText(LocalizationManager::tr("btn.open_file"));
     if (btnRandomUnread_ != nullptr) btnRandomUnread_->setText(LocalizationManager::tr("btn.random_unread"));
     if (searchEdit_ != nullptr) searchEdit_->setPlaceholderText(LocalizationManager::tr("search.placeholder"));
+    if (cmbSortBy_ != nullptr && cmbSortBy_->count() == 4) {
+        cmbSortBy_->setItemText(0, LocalizationManager::tr("sort.title_az"));
+        cmbSortBy_->setItemText(1, LocalizationManager::tr("sort.recently_added"));
+        cmbSortBy_->setItemText(2, LocalizationManager::tr("sort.last_read"));
+        cmbSortBy_->setItemText(3, LocalizationManager::tr("sort.file_size"));
+    }
+    if (cmbStatusFilter_ != nullptr && cmbStatusFilter_->count() == 4) {
+        cmbStatusFilter_->setItemText(0, LocalizationManager::tr("filter.all"));
+        cmbStatusFilter_->setItemText(1, LocalizationManager::tr("filter.unread"));
+        cmbStatusFilter_->setItemText(2, LocalizationManager::tr("filter.in_progress"));
+        cmbStatusFilter_->setItemText(3, LocalizationManager::tr("filter.finished"));
+    }
     if (btnLibraryView_ != nullptr) btnLibraryView_->setText(LocalizationManager::tr("btn.library"));
     if (btnReaderView_ != nullptr) btnReaderView_->setText(LocalizationManager::tr("btn.reader"));
     if (btnSettings_ != nullptr) btnSettings_->setText(LocalizationManager::tr("btn.settings"));
@@ -1304,7 +1422,11 @@ void MainWindow::retranslateUi() {
     if (readerController_ != nullptr && !readerController_->isOpen() && readerTitleLabel_ != nullptr) {
         readerTitleLabel_->setText(LocalizationManager::tr("reader.no_volume"));
     }
+    if (statusLabel_ != nullptr && (statusLabel_->text().isEmpty() || statusLabel_->text() == QStringLiteral("Ready"))) {
+        statusLabel_->setText(LocalizationManager::tr("status.ready"));
+    }
     if (sidebar_ != nullptr) sidebar_->retranslateUi();
+    if (readerViewport_ != nullptr) readerViewport_->retranslateUi();
     if (prefsWorkspace_ != nullptr) prefsWorkspace_->retranslateUi();
     if (toolWorkspace_ != nullptr) toolWorkspace_->retranslateUi();
 }
@@ -1377,6 +1499,7 @@ void MainWindow::applySettings(
 void MainWindow::openToolWorkspace(
     const QString& toolId,
     const std::vector<std::filesystem::path>& initialPaths) {
+    (void)ensureToolWorkspace();
     if (toolWorkspace_ != nullptr && toolWorkspace_->isToolRunning() &&
         toolWorkspace_->currentToolId() != toolId) {
         toolWorkspace_->openTool(toolId, initialPaths);
@@ -1393,6 +1516,7 @@ void MainWindow::openToolWorkspace(
 }
 
 void MainWindow::openPreferencesWorkspace() {
+    (void)ensurePreferencesWorkspace();
     if (activeViewMode_ == ActiveViewMode::Library || activeViewMode_ == ActiveViewMode::Reader) {
         previousViewMode_ = activeViewMode_;
     }
@@ -1406,28 +1530,42 @@ void MainWindow::openPreferencesWorkspace() {
     switchToView(ActiveViewMode::Preferences);
 }
 
+std::vector<std::filesystem::path> MainWindow::selectedLibraryPaths() const {
+    std::vector<std::filesystem::path> paths;
+    if (libraryView_ != nullptr) {
+        for (const auto& rec : libraryView_->selectedComics()) {
+            if (!rec.filePath.empty()) {
+                paths.push_back(rec.filePath);
+            }
+        }
+    }
+    return paths;
+}
+
 void MainWindow::openMergeComicsDialog(const std::vector<std::filesystem::path>& initialFiles) {
-    openToolWorkspace(QStringLiteral("merge_comics"), initialFiles);
+    openToolWorkspace(
+        QStringLiteral("merge_comics"),
+        initialFiles.empty() ? selectedLibraryPaths() : initialFiles);
 }
 
 void MainWindow::openConvertComicDialog() {
-    openToolWorkspace(QStringLiteral("convert_comics"));
+    openToolWorkspace(QStringLiteral("convert_comics"), selectedLibraryPaths());
 }
 
 void MainWindow::openBatchConvertImagesDialog() {
-    openToolWorkspace(QStringLiteral("convert_images"));
+    openToolWorkspace(QStringLiteral("convert_images"), selectedLibraryPaths());
 }
 
 void MainWindow::openCreateComicDialog() {
-    openToolWorkspace(QStringLiteral("create_comic"));
+    openToolWorkspace(QStringLiteral("create_comic"), selectedLibraryPaths());
 }
 
 void MainWindow::openExtractPagesDialog() {
-    openToolWorkspace(QStringLiteral("extract_pages"));
+    openToolWorkspace(QStringLiteral("extract_pages"), selectedLibraryPaths());
 }
 
 void MainWindow::openNativeOcrDialog() {
-    openToolWorkspace(QStringLiteral("extract_ocr"));
+    openToolWorkspace(QStringLiteral("extract_ocr"), selectedLibraryPaths());
 }
 
 void MainWindow::openShortcutsDialog() {
@@ -1516,7 +1654,7 @@ void MainWindow::openAboutDialog() {
     }
 
     auto* headerLabel = new QLabel(
-        QStringLiteral("<b>MAVIRA - Native C++20 Batch Comic Converter, Extractor, Merger &amp; Offline OCR Suite</b> (v1.0.0)<br/>"
+        QStringLiteral("<b>MAVIRA - Native C++20 Batch Comic Converter, Extractor, Merger &amp; Offline OCR Suite</b> (v1.1.0)<br/>"
                        "Portable Windows x64 Archive Utility &amp; Built-In Quick Preview Reader<br/>"
                        "Licensed under the MIT License."),
         &dlg);
@@ -1556,6 +1694,13 @@ void MainWindow::openAboutDialog() {
 }
 
 void MainWindow::switchToView(ActiveViewMode mode) {
+    if (mode == ActiveViewMode::Reader) {
+        (void)ensureReaderViewport();
+    } else if (mode == ActiveViewMode::ToolWorkspace) {
+        (void)ensureToolWorkspace();
+    } else if (mode == ActiveViewMode::Preferences) {
+        (void)ensurePreferencesWorkspace();
+    }
     activeViewMode_ = mode;
     if (centralStack_ != nullptr) {
         centralStack_->setCurrentIndex(static_cast<int>(mode));
@@ -1729,13 +1874,28 @@ void MainWindow::onSidebarNavigationSelected(const SidebarFilterSelection& selec
     std::vector<mavira::data::db::ComicRecord> records;
     QString headerTitle = selection.label.toUpper();
 
+    isAllComicsView_ = (selection.kind == SidebarNodeKind::AllComics);
     switch (selection.kind) {
         case SidebarNodeKind::AllComics: {
-            if (auto res = db_->getAllComics(0, settings_.show_hidden_items); res) {
-                records = std::move(res.value());
+            const std::string statusKey = (cmbStatusFilter_ != nullptr)
+                ? cmbStatusFilter_->currentData().toString().toStdString()
+                : "all";
+            const std::string sortKey = (cmbSortBy_ != nullptr)
+                ? cmbSortBy_->currentData().toString().toStdString()
+                : "title_az";
+            if (auto res = db_->queryComicsFiltered(statusKey, sortKey, settings_.show_hidden_items, 0); res) {
+                displayedComics_ = std::move(res.value());
+            } else {
+                displayedComics_.clear();
             }
-            headerTitle = QStringLiteral("ALL COMICS (%1)").arg(records.size());
-            break;
+            currentViewTitle_ = QStringLiteral("ALL COMICS (%1)").arg(displayedComics_.size());
+            if (viewHeaderLabel_ != nullptr) {
+                viewHeaderLabel_->setText(currentViewTitle_);
+            }
+            if (libraryView_ != nullptr) {
+                libraryView_->setComics(displayedComics_);
+            }
+            return;
         }
         case SidebarNodeKind::Favorites:
         case SidebarNodeKind::ShelfItem: {
@@ -1763,8 +1923,7 @@ void MainWindow::onSidebarNavigationSelected(const SidebarFilterSelection& selec
             if (auto allRes = db_->getAllComics(0, settings_.show_hidden_items); allRes) {
                 const QString bucket = selection.payload.toUpper();
                 for (auto& c : allRes.value()) {
-                    const QString s = QString::fromStdString(c.series).trimmed();
-                    if (!s.isEmpty() && s.left(1).toUpper() == bucket) {
+                    if (!c.series.empty() && ExplorerSidebar::seriesBucketForName(c.series) == bucket) {
                         records.push_back(std::move(c));
                     }
                 }
@@ -1801,10 +1960,79 @@ void MainWindow::onSidebarNavigationSelected(const SidebarFilterSelection& selec
 void MainWindow::populateLibraryTable(
     const std::vector<mavira::data::db::ComicRecord>& comics,
     const QString& viewTitle) {
-    displayedComics_ = comics;
+    isAllComicsView_ = false;
+    unfilteredComics_ = comics;
+    currentViewTitle_ = viewTitle;
+    applySortAndStatusFilter();
+}
+
+void MainWindow::applySortAndStatusFilter() {
+    const QString statusKey = (cmbStatusFilter_ != nullptr)
+        ? cmbStatusFilter_->currentData().toString()
+        : QStringLiteral("all");
+    const QString sortKey = (cmbSortBy_ != nullptr)
+        ? cmbSortBy_->currentData().toString()
+        : QStringLiteral("title_az");
+
+    // Fast path for All Comics (30,000+ titles): execute indexed SQLite WHERE + ORDER BY directly.
+    if (isAllComicsView_ && db_ != nullptr && db_->isOpen()) {
+        if (auto res = db_->queryComicsFiltered(
+                statusKey.toStdString(),
+                sortKey.toStdString(),
+                settings_.show_hidden_items,
+                0); res) {
+            displayedComics_ = std::move(res.value());
+        } else {
+            displayedComics_.clear();
+        }
+        currentViewTitle_ = QStringLiteral("ALL COMICS (%1)").arg(displayedComics_.size());
+        if (viewHeaderLabel_ != nullptr) {
+            viewHeaderLabel_->setText(currentViewTitle_);
+        }
+        if (libraryView_ != nullptr) {
+            libraryView_->setComics(displayedComics_);
+        }
+        return;
+    }
+
+    displayedComics_.clear();
+    displayedComics_.reserve(unfilteredComics_.size());
+    for (const auto& c : unfilteredComics_) {
+        if (statusKey == QStringLiteral("unread") && (c.isRead || c.currentPage > 0)) {
+            continue;
+        }
+        if (statusKey == QStringLiteral("in_progress") && (c.isRead || c.currentPage == 0)) {
+            continue;
+        }
+        if (statusKey == QStringLiteral("finished") && !c.isRead) {
+            continue;
+        }
+        displayedComics_.push_back(c);
+    }
+
+    if (sortKey == QStringLiteral("added_desc")) {
+        std::sort(displayedComics_.begin(), displayedComics_.end(), [](const auto& a, const auto& b) {
+            return a.addedUnix > b.addedUnix;
+        });
+    } else if (sortKey == QStringLiteral("last_read_desc")) {
+        std::sort(displayedComics_.begin(), displayedComics_.end(), [](const auto& a, const auto& b) {
+            return a.lastReadUnix > b.lastReadUnix;
+        });
+    } else if (sortKey == QStringLiteral("size_desc")) {
+        std::sort(displayedComics_.begin(), displayedComics_.end(), [](const auto& a, const auto& b) {
+            return a.fileSizeBytes > b.fileSizeBytes;
+        });
+    } else {
+        std::sort(displayedComics_.begin(), displayedComics_.end(), [](const auto& a, const auto& b) {
+            return mavira::data::fs::FileManager::naturalCompare(a.title, b.title) < 0;
+        });
+    }
 
     if (viewHeaderLabel_ != nullptr) {
-        viewHeaderLabel_->setText(viewTitle);
+        viewHeaderLabel_->setText(
+            statusKey == QStringLiteral("all")
+                ? currentViewTitle_
+                : QStringLiteral("%1 - %2").arg(currentViewTitle_).arg(displayedComics_.size()));
     }
     if (libraryView_ != nullptr) {
         libraryView_->setComics(displayedComics_);

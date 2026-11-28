@@ -121,10 +121,14 @@ std::size_t PageRamCache::entryCount() const noexcept {
     return entries_.size();
 }
 
-void PageRamCache::setCurrentReadingPosition(std::int64_t comicId, std::size_t pageIndex) noexcept {
+void PageRamCache::setCurrentReadingPosition(
+    std::int64_t comicId,
+    std::size_t pageIndex,
+    bool isSequentialArchive) noexcept {
     std::scoped_lock lock(mutex_);
     currentComicId_ = comicId;
     currentPageIndex_ = pageIndex;
+    currentComicSequential_ = isSequentialArchive;
 }
 
 void PageRamCache::put(const PageCacheKey& key, std::shared_ptr<const ImageFrame> frame) {
@@ -185,6 +189,7 @@ void PageRamCache::eraseComic(std::int64_t comicId) {
     if (currentComicId_ == comicId) {
         currentComicId_ = 0;
         currentPageIndex_ = 0;
+        currentComicSequential_ = false;
     }
 }
 
@@ -195,14 +200,25 @@ void PageRamCache::clear() {
 }
 
 void PageRamCache::evictIfNeededLocked() {
+    constexpr std::size_t kSeqBackwardProtect = 5;
+    constexpr std::size_t kSeqForwardProtect = 2;
+
     while (usedBytes_ > maxBytes_ && !entries_.empty()) {
         auto victim = entries_.end();
         bool victimOtherComic = false;
+        bool victimUnprotected = false;
         std::size_t victimDist = 0;
         std::uint64_t victimTick = (std::numeric_limits<std::uint64_t>::max)();
 
+        const std::size_t seqMinProtect =
+            (currentPageIndex_ >= kSeqBackwardProtect) ? (currentPageIndex_ - kSeqBackwardProtect) : 0;
+        const std::size_t seqMaxProtect = currentPageIndex_ + kSeqForwardProtect;
+
         for (auto it = entries_.begin(); it != entries_.end(); ++it) {
             const bool otherComic = (it->first.comicId != currentComicId_);
+            const bool protectedSeq = !otherComic && currentComicSequential_ &&
+                (it->first.pageIndex >= seqMinProtect && it->first.pageIndex <= seqMaxProtect);
+            const bool unprotected = !protectedSeq;
             const std::size_t dist = otherComic
                 ? (std::numeric_limits<std::size_t>::max)()
                 : (it->first.pageIndex >= currentPageIndex_
@@ -215,6 +231,8 @@ void PageRamCache::evictIfNeededLocked() {
                 betterVictim = true;
             } else if (otherComic != victimOtherComic) {
                 betterVictim = otherComic; // Always evict pages from inactive comics first
+            } else if (unprotected != victimUnprotected) {
+                betterVictim = unprotected; // Protect N-5..N+2 window for sequential archives (RAR5/7z)
             } else if (dist != victimDist) {
                 betterVictim = dist > victimDist; // Evict page furthest from current index first
             } else if (tick < victimTick) {
@@ -224,6 +242,7 @@ void PageRamCache::evictIfNeededLocked() {
             if (betterVictim) {
                 victim = it;
                 victimOtherComic = otherComic;
+                victimUnprotected = unprotected;
                 victimDist = dist;
                 victimTick = tick;
             }
@@ -360,6 +379,18 @@ PackFileCoverProvider::PackFileCoverProvider(
       db_(db),
       ramLru_(maxRamBytes) {}
 
+PackFileCoverProvider::~PackFileCoverProvider() {
+    closePackHandle();
+}
+
+void PackFileCoverProvider::closePackHandle() noexcept {
+    std::scoped_lock lock(packIoMutex_);
+    if (packHandle_ != nullptr && packHandle_ != INVALID_HANDLE_VALUE) {
+        ::CloseHandle(static_cast<HANDLE>(packHandle_));
+    }
+    packHandle_ = nullptr;
+}
+
 Result<std::vector<std::uint8_t>> PackFileCoverProvider::readRawWebpFromPack(
     std::int64_t offset,
     std::uint32_t size,
@@ -374,48 +405,49 @@ Result<std::vector<std::uint8_t>> PackFileCoverProvider::readRawWebpFromPack(
     }
 
     std::scoped_lock lock(packIoMutex_);
-    const std::wstring wideLongPath = FileManager::toWin32LongPath(packFilePath_);
-    HANDLE hFile = ::CreateFileW(
-        wideLongPath.c_str(),
-        GENERIC_READ,
-        FILE_SHARE_READ | FILE_SHARE_WRITE | FILE_SHARE_DELETE,
-        nullptr,
-        OPEN_EXISTING,
-        FILE_ATTRIBUTE_NORMAL | FILE_FLAG_RANDOM_ACCESS,
-        nullptr);
-    if (hFile == INVALID_HANDLE_VALUE) {
-        return Result<std::vector<std::uint8_t>>::err(
-            ErrorCode::NotFound,
-            "Failed to open covers.pack: " + FileManager::wideToUtf8(packFilePath_.native()));
+    if (packHandle_ == nullptr || packHandle_ == INVALID_HANDLE_VALUE) {
+        const std::wstring wideLongPath = FileManager::toWin32LongPath(packFilePath_);
+        HANDLE hOpened = ::CreateFileW(
+            wideLongPath.c_str(),
+            GENERIC_READ,
+            FILE_SHARE_READ | FILE_SHARE_WRITE | FILE_SHARE_DELETE,
+            nullptr,
+            OPEN_EXISTING,
+            FILE_ATTRIBUTE_NORMAL | FILE_FLAG_RANDOM_ACCESS,
+            nullptr);
+        if (hOpened == INVALID_HANDLE_VALUE) {
+            return Result<std::vector<std::uint8_t>>::err(
+                ErrorCode::NotFound,
+                "Failed to open covers.pack: " + FileManager::wideToUtf8(packFilePath_.native()));
+        }
+        packHandle_ = hOpened;
     }
 
-    LARGE_INTEGER seekPos{};
-    seekPos.QuadPart = static_cast<LONGLONG>(offset);
-    if (!::SetFilePointerEx(hFile, seekPos, nullptr, FILE_BEGIN)) {
-        ::CloseHandle(hFile);
-        return Result<std::vector<std::uint8_t>>::err(
-            ErrorCode::IoError, "Failed to seek inside covers.pack");
-    }
-
+    HANDLE hFile = static_cast<HANDLE>(packHandle_);
     std::vector<std::uint8_t> buffer(size);
     std::uint32_t totalRead = 0;
     while (totalRead < size) {
         if (stopToken.stop_requested()) {
-            ::CloseHandle(hFile);
             return Result<std::vector<std::uint8_t>>::err(
                 ErrorCode::Cancelled, "Pack cover read cancelled");
         }
+        const std::uint64_t curOffset = static_cast<std::uint64_t>(offset) + totalRead;
+        OVERLAPPED ov{};
+        ov.Offset = static_cast<DWORD>(curOffset & 0xFFFFFFFFULL);
+        ov.OffsetHigh = static_cast<DWORD>((curOffset >> 32) & 0xFFFFFFFFULL);
+
         DWORD chunkRead = 0;
-        if (!::ReadFile(hFile, buffer.data() + totalRead, size - totalRead, &chunkRead, nullptr) ||
+        if (!::ReadFile(hFile, buffer.data() + totalRead, size - totalRead, &chunkRead, &ov) ||
             chunkRead == 0) {
+            // Reset persistent handle in case covers.pack was rebuilt or purged externally.
             ::CloseHandle(hFile);
+            packHandle_ = nullptr;
             return Result<std::vector<std::uint8_t>>::err(
                 ErrorCode::IoError, "Failed to read WebP payload from covers.pack");
         }
         totalRead += static_cast<std::uint32_t>(chunkRead);
     }
 
-    ::CloseHandle(hFile);
     return Result<std::vector<std::uint8_t>>::ok(std::move(buffer));
 }
 
@@ -461,6 +493,7 @@ void PackFileCoverProvider::invalidate(std::int64_t comicId) {
 
 void PackFileCoverProvider::clearMemoryCache() {
     ramLru_.clear();
+    closePackHandle();
 }
 
 std::size_t PackFileCoverProvider::memoryUsageBytes() const noexcept {
@@ -489,6 +522,8 @@ Result<std::size_t> PackFileCoverProvider::indexUncachedCovers(
     if (packFilePath_.has_parent_path()) {
         std::filesystem::create_directories(packFilePath_.parent_path(), ec);
     }
+
+    closePackHandle();
 
     const std::filesystem::path longPackPath(FileManager::toWin32LongPath(packFilePath_));
     std::ofstream ofs(longPackPath, std::ios::binary | std::ios::app | std::ios::out);

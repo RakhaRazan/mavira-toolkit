@@ -60,6 +60,8 @@ public:
     void refreshNavigation();
     void retranslateUi();
 
+    [[nodiscard]] static QString seriesBucketForName(std::string_view series);
+
     ///Programmatically selects a top-level navigation node (e.g. AllComics or Favorites).
     void selectAllComics();
     void selectFavorites();

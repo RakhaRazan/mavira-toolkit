@@ -45,7 +45,12 @@ public:
     [[nodiscard]] std::size_t entryCount() const noexcept;
 
     /// Updates the reader's active comic & page index used to prioritize eviction distance.
-    void setCurrentReadingPosition(std::int64_t comicId, std::size_t pageIndex) noexcept;
+    /// When `isSequentialArchive` is true (e.g., RAR5/7z), protects a backward retention
+    /// window (`N-5 .. N+2`) to avoid expensive stream reopen/re-decompression on back flips.
+    void setCurrentReadingPosition(
+        std::int64_t comicId,
+        std::size_t pageIndex,
+        bool isSequentialArchive = false) noexcept;
 
     /// Inserts or updates a decoded page frame, evicting furthest pages until within budget.
     void put(const PageCacheKey& key, std::shared_ptr<const mavira::core::ImageFrame> frame);
@@ -72,6 +77,7 @@ private:
     std::size_t usedBytes_{0};
     std::int64_t currentComicId_{0};
     std::size_t currentPageIndex_{0};
+    bool currentComicSequential_{false};
     std::uint64_t accessTick_{0};
     std::unordered_map<PageCacheKey, Entry, PageCacheKeyHash> entries_{};
 };
@@ -136,6 +142,9 @@ public:
         std::filesystem::path packFilePath,
         mavira::data::db::DatabaseManager* db,
         std::size_t maxRamBytes = kDefaultRamBudgetBytes);
+    ~PackFileCoverProvider() override;
+
+    void closePackHandle() noexcept;
 
     [[nodiscard]] mavira::core::Result<std::shared_ptr<const mavira::core::ImageFrame>>
     getCover(
@@ -167,6 +176,7 @@ private:
     std::filesystem::path packFilePath_{};
     mavira::data::db::DatabaseManager* db_{nullptr};
     mutable std::mutex packIoMutex_{};
+    mutable void* packHandle_{nullptr};
     CoverRamLru ramLru_;
 };
 

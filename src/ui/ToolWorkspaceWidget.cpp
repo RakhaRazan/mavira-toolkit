@@ -104,19 +104,7 @@ void ToolWorkspaceWidget::setupUi() {
     progressBar_->setObjectName(QStringLiteral("ToolProgressBar"));
     progressBar_->setVisible(false);
     progressBar_->setTextVisible(true);
-    progressBar_->setStyleSheet(QStringLiteral(
-        "QProgressBar { "
-        "  border: 1px solid #2A3241; "
-        "  border-radius: 6px; "
-        "  background-color: #141820; "
-        "  color: #E2E8F0; "
-        "  text-align: center; "
-        "  min-height: 18px; "
-        "} "
-        "QProgressBar::chunk { "
-        "  background: qlineargradient(x1:0, y1:0, x2:1, y2:0, stop:0 #3B82F6, stop:1 #06B6D4); "
-        "  border-radius: 5px; "
-        "}"));
+    progressBar_->setMinimumHeight(18);
 
     progressStatusLabel_ = new QLabel(sidebar);
     progressStatusLabel_->setObjectName(QStringLiteral("ToolProgressLabel"));
@@ -133,8 +121,8 @@ void ToolWorkspaceWidget::setupUi() {
     btnCancel_->setObjectName(QStringLiteral("ToolCancelBtn"));
     btnCancel_->setVisible(false);
 
-    auto* navLabel = new QLabel(QStringLiteral("WORKSPACE SECTIONS"), sidebar);
-    navLabel->setObjectName(QStringLiteral("SidebarSectionTitle"));
+    navLabel_ = new QLabel(LocalizationManager::tr("tool.sections"), sidebar);
+    navLabel_->setObjectName(QStringLiteral("SidebarSectionTitle"));
 
     navGroup_ = new QButtonGroup(this);
     navGroup_->setExclusive(true);
@@ -159,7 +147,7 @@ void ToolWorkspaceWidget::setupUi() {
     sideLayout->addWidget(progressStatusLabel_);
     sideLayout->addWidget(btnCancel_);
     sideLayout->addSpacing(8);
-    sideLayout->addWidget(navLabel);
+    sideLayout->addWidget(navLabel_);
     sideLayout->addWidget(btnTabGeneral_);
     sideLayout->addWidget(btnTabAdvanced_);
     sideLayout->addWidget(btnTabSettings_);
@@ -1336,6 +1324,38 @@ void ToolWorkspaceWidget::retranslateUi() {
     if (btnCloseTool_ != nullptr) {
         btnCloseTool_->setText(LocalizationManager::tr("tool.close"));
     }
+    if (btnCancel_ != nullptr) {
+        btnCancel_->setText(LocalizationManager::tr("tool.btn.cancel"));
+    }
+    if (navLabel_ != nullptr) {
+        navLabel_->setText(LocalizationManager::tr("tool.sections"));
+    }
+    if (btnTabGeneral_ != nullptr) btnTabGeneral_->setText(LocalizationManager::tr("tool.tab_general"));
+    if (btnTabAdvanced_ != nullptr) btnTabAdvanced_->setText(LocalizationManager::tr("tool.tab_advanced"));
+    if (btnTabSettings_ != nullptr) btnTabSettings_->setText(LocalizationManager::tr("tool.tab_settings"));
+
+    if (cardInput_ != nullptr) cardInput_->setTabTitle(LocalizationManager::tr("tool.card_input"));
+    if (cardOutput_ != nullptr) cardOutput_->setTabTitle(LocalizationManager::tr("tool.card_output"));
+    if (cardImage_ != nullptr) cardImage_->setTabTitle(LocalizationManager::tr("tool.card_image"));
+    if (cardOcrResult_ != nullptr) cardOcrResult_->setTabTitle(LocalizationManager::tr("tool.card_ocr"));
+    if (cardAdvInput_ != nullptr) cardAdvInput_->setTabTitle(LocalizationManager::tr("tool.card_adv_input"));
+    if (cardAdvOutput_ != nullptr) cardAdvOutput_->setTabTitle(LocalizationManager::tr("tool.card_adv_output"));
+    if (cardAdvImage_ != nullptr) cardAdvImage_->setTabTitle(LocalizationManager::tr("tool.card_adv_image"));
+    if (cardToolSettings_ != nullptr) cardToolSettings_->setTabTitle(LocalizationManager::tr("tool.card_settings"));
+
+    if (btnAddFiles_ != nullptr) btnAddFiles_->setText(LocalizationManager::tr("tool.btn.add_files"));
+    if (btnAddFolders_ != nullptr) btnAddFolders_->setText(LocalizationManager::tr("tool.btn.add_folders"));
+    if (btnClearList_ != nullptr) btnClearList_->setText(LocalizationManager::tr("tool.btn.clear_list"));
+    if (btnMoveUp_ != nullptr) btnMoveUp_->setText(LocalizationManager::tr("tool.btn.move_up"));
+    if (btnMoveDown_ != nullptr) btnMoveDown_->setText(LocalizationManager::tr("tool.btn.move_down"));
+    if (btnChangeOutputDir_ != nullptr) btnChangeOutputDir_->setText(LocalizationManager::tr("tool.btn.change"));
+    if (btnOpenOutputDir_ != nullptr) btnOpenOutputDir_->setText(LocalizationManager::tr("tool.btn.open"));
+    if (btnCopyOcr_ != nullptr) btnCopyOcr_->setText(LocalizationManager::tr("tool.btn.copy_text"));
+    if (btnSaveOcr_ != nullptr) btnSaveOcr_->setText(LocalizationManager::tr("tool.btn.save_txt"));
+    if (btnResetImageOps_ != nullptr) btnResetImageOps_->setText(LocalizationManager::tr("tool.btn.reset_image_ops"));
+    if (btnResetToolOptions_ != nullptr) btnResetToolOptions_->setText(LocalizationManager::tr("tool.btn.reset_options"));
+    if (chkRememberLastOptions_ != nullptr) chkRememberLastOptions_->setText(LocalizationManager::tr("tool.chk.remember_last"));
+
     if (currentToolId_ == QStringLiteral("convert_comics")) {
         if (toolHeaderBadge_) toolHeaderBadge_->setText(LocalizationManager::tr("tool.convert_comics").toUpper());
         if (btnExecute_) btnExecute_->setText(LocalizationManager::tr("tool.btn.convert"));

@@ -2,7 +2,7 @@
 ; Windows x64 Inno Setup Installer Script
 
 #define MyAppName "MAVIRA"
-#define MyAppVersion "1.0.0"
+#define MyAppVersion "1.1.0"
 #define MyAppPublisher "MAVIRA Contributors"
 #define MyAppExeName "MAVIRA.exe"
 #define RootDir ".."
@@ -23,7 +23,7 @@ ArchitecturesInstallIn64BitMode=x64compatible
 LicenseFile=..\LICENSE
 InfoAfterFile=..\THIRD_PARTY_NOTICES.txt
 OutputDir=..\release
-OutputBaseFilename=MAVIRA-Setup-x64-v1.0.0
+OutputBaseFilename=MAVIRA-Setup-x64-v1.1.0
 Compression=lzma2/ultra64
 SolidCompression=yes
 LZMAUseSeparateProcess=yes
@@ -41,6 +41,8 @@ Name: "desktopicon"; Description: "{cm:CreateDesktopIcon}"; GroupDescription: "{
 [Files]
 Source: "{#RootDir}\{#MyAppExeName}"; DestDir: "{app}"; Flags: ignoreversion
 Source: "{#RuntimeDir}\*"; DestDir: "{app}\runtime"; Flags: ignoreversion recursesubdirs createallsubdirs
+Source: "{#RootDir}\LICENSE"; DestDir: "{app}"; Flags: ignoreversion
+Source: "{#RootDir}\THIRD_PARTY_NOTICES.txt"; DestDir: "{app}"; Flags: ignoreversion
 
 [Dirs]
 Name: "{app}\data"; Permissions: users-modify

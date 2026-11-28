@@ -1,6 +1,7 @@
 #include "app/ReaderController.hpp"
 
 #include "core/archive/ArchiveEngine.hpp"
+#include "core/archive/LibArchiveReader.hpp"
 #include "core/archive/PdfDocumentReader.hpp"
 #include "core/imaging/ImageDecoder.hpp"
 #include "data/fs/FileManager.hpp"
@@ -139,6 +140,7 @@ Result<void> ReaderController::openComic(
 }
 
 Result<void> ReaderController::openComicRecord(const ComicRecord& comic) {
+    applyPerComicProfile(comic.readingMode, comic.readingDir, comic.fitMode);
     return openComic(comic.filePath, comic.id, static_cast<std::size_t>(comic.currentPage));
 }
 
@@ -165,6 +167,8 @@ Result<void> ReaderController::openReader(
     ++sessionGeneration_;
     auto newSession = std::make_shared<ReaderSession>();
     newSession->isPdf = (dynamic_cast<PdfDocumentReader*>(reader.get()) != nullptr);
+    newSession->isSequential =
+        (dynamic_cast<mavira::core::archive::LibArchiveReader*>(reader.get()) != nullptr);
     newSession->reader = std::move(reader);
 
     session_ = std::move(newSession);
@@ -179,8 +183,16 @@ Result<void> ReaderController::openReader(
     currentLayout_.reset();
     progressDirty_ = false;
 
-    cacheManager_->pageCache().setCurrentReadingPosition(effectiveCacheComicId(), currentPage_);
+    cacheManager_->pageCache().setCurrentReadingPosition(
+        effectiveCacheComicId(), currentPage_, session_ != nullptr && session_->isSequential);
     loadBookmarks();
+
+    if (comicId > 0 && db_ != nullptr && db_->isOpen() && !hasPerComicProfile_ && !pendingAutoWebtoonDetect_) {
+        if (auto recRes = db_->getComicById(comicId); recRes && recRes.value().has_value()) {
+            const auto& rec = *recRes.value();
+            applyPerComicProfile(rec.readingMode, rec.readingDir, rec.fitMode);
+        }
+    }
 
     emit comicOpened(comicId_, static_cast<int>(totalPages_));
     emit pageChanged(static_cast<int>(currentPage_), static_cast<int>(totalPages_));
@@ -211,6 +223,8 @@ void ReaderController::closeComic() {
     currentLayout_.reset();
     bookmarks_.clear();
     progressDirty_ = false;
+    hasPerComicProfile_ = false;
+    pendingAutoWebtoonDetect_ = false;
 
     emit bookmarksChanged();
     emit comicClosed();
@@ -284,7 +298,8 @@ bool ReaderController::goToPage(std::size_t pageIndex) {
     const std::size_t clamped = (std::min)(pageIndex, totalPages_ - 1);
     const bool changed = (clamped != currentPage_);
     currentPage_ = clamped;
-    cacheManager_->pageCache().setCurrentReadingPosition(effectiveCacheComicId(), currentPage_);
+    cacheManager_->pageCache().setCurrentReadingPosition(
+        effectiveCacheComicId(), currentPage_, session_ != nullptr && session_->isSequential);
 
     if (changed) {
         emit pageChanged(static_cast<int>(currentPage_), static_cast<int>(totalPages_));
@@ -341,19 +356,79 @@ bool ReaderController::lastPage() {
 }
 
 void ReaderController::applySettings(const AppSettings& settings) {
-    readingDirection_ = settings.default_manga_mode ? ReadingDirection::RTL : ReadingDirection::LTR;
+    applyingProfileOrSettings_ = true;
+
+    globalDefaultDirection_ = settings.default_manga_mode ? ReadingDirection::RTL : ReadingDirection::LTR;
     smartWideSpread_ = settings.smart_wide_spread;
     autoCropBorders_ = settings.auto_crop_borders;
-    if (settings.vertical_webtoon_mode) {
-        readingMode_ = ReadingMode::VerticalWebtoon;
-    } else if (readingMode_ == ReadingMode::VerticalWebtoon) {
-        readingMode_ = ReadingMode::SinglePage;
+
+    if (settings.vertical_webtoon_mode || settings.default_page_layout == "webtoon") {
+        globalDefaultMode_ = ReadingMode::VerticalWebtoon;
+    } else if (settings.default_page_layout == "dual" || settings.default_page_layout == "dual_spread") {
+        globalDefaultMode_ = ReadingMode::DualPage;
+    } else {
+        globalDefaultMode_ = ReadingMode::SinglePage;
     }
 
+    if (settings.default_fit_mode == "fit_width") {
+        globalDefaultFitMode_ = FitMode::FitWidth;
+    } else if (settings.default_fit_mode == "fit_height") {
+        globalDefaultFitMode_ = FitMode::FitHeight;
+    } else if (settings.default_fit_mode == "original") {
+        globalDefaultFitMode_ = FitMode::Original;
+    } else {
+        globalDefaultFitMode_ = FitMode::FitScreen;
+    }
+
+    if (!hasPerComicProfile_) {
+        readingMode_ = globalDefaultMode_;
+        readingDirection_ = globalDefaultDirection_;
+        fitMode_ = globalDefaultFitMode_;
+    }
+
+    applyingProfileOrSettings_ = false;
     emit viewStateChanged();
     if (isOpen()) {
         requestCurrentAndPrefetchPages();
     }
+}
+
+void ReaderController::applyPerComicProfile(int readingMode, int readingDir, int fitMode) {
+    applyingProfileOrSettings_ = true;
+    if (readingMode >= 0 || readingDir >= 0 || fitMode >= 0) {
+        hasPerComicProfile_ = true;
+        pendingAutoWebtoonDetect_ = false;
+        readingMode_ = (readingMode >= 0 && readingMode <= 2)
+            ? static_cast<ReadingMode>(readingMode)
+            : globalDefaultMode_;
+        readingDirection_ = (readingDir >= 0 && readingDir <= 1)
+            ? static_cast<ReadingDirection>(readingDir)
+            : globalDefaultDirection_;
+        fitMode_ = (fitMode >= 0 && fitMode <= 3)
+            ? static_cast<FitMode>(fitMode)
+            : globalDefaultFitMode_;
+    } else {
+        hasPerComicProfile_ = false;
+        pendingAutoWebtoonDetect_ = true;
+        readingMode_ = globalDefaultMode_;
+        readingDirection_ = globalDefaultDirection_;
+        fitMode_ = globalDefaultFitMode_;
+    }
+    applyingProfileOrSettings_ = false;
+    emit viewStateChanged();
+}
+
+void ReaderController::persistComicReadingProfile() {
+    if (applyingProfileOrSettings_ || !isOpen() || comicId_ <= 0 || db_ == nullptr || !db_->isOpen()) {
+        return;
+    }
+    hasPerComicProfile_ = true;
+    pendingAutoWebtoonDetect_ = false;
+    (void)db_->updateComicReadingProfile(
+        comicId_,
+        static_cast<int>(readingMode_),
+        static_cast<int>(readingDirection_),
+        static_cast<int>(fitMode_));
 }
 
 void ReaderController::setReadingMode(ReadingMode mode) {
@@ -361,6 +436,7 @@ void ReaderController::setReadingMode(ReadingMode mode) {
         return;
     }
     readingMode_ = mode;
+    persistComicReadingProfile();
     emit viewStateChanged();
     if (isOpen()) {
         requestCurrentAndPrefetchPages();
@@ -372,6 +448,7 @@ void ReaderController::setReadingDirection(ReadingDirection direction) {
         return;
     }
     readingDirection_ = direction;
+    persistComicReadingProfile();
     emit viewStateChanged();
     if (isOpen()) {
         tryComposeAndEmitCurrentPage();
@@ -383,6 +460,7 @@ void ReaderController::setFitMode(FitMode mode) {
         return;
     }
     fitMode_ = mode;
+    persistComicReadingProfile();
     emit viewStateChanged();
 }
 
@@ -573,6 +651,13 @@ bool ReaderController::isPageCached(std::size_t pageIndex) const {
     return cacheManager_->pageCache().contains(PageCacheKey{effectiveCacheComicId(), pageIndex});
 }
 
+std::shared_ptr<const ImageFrame> ReaderController::cachedPageFrame(std::size_t pageIndex) const {
+    if (!isOpen()) {
+        return nullptr;
+    }
+    return cacheManager_->pageCache().get(PageCacheKey{effectiveCacheComicId(), pageIndex});
+}
+
 std::size_t ReaderController::activeTaskCount() const {
     return inflightTasks_.size();
 }
@@ -587,12 +672,15 @@ std::vector<std::size_t> ReaderController::computeDesiredPages(std::size_t baseP
         return pages;
     }
 
-    pages.reserve(1 + kPrefetchLookahead);
+    pages.reserve(2 + kPrefetchLookahead);
     for (std::size_t offset = 0; offset <= kPrefetchLookahead; ++offset) {
         const std::size_t idx = basePage + offset;
         if (idx < totalPages_) {
             pages.push_back(idx);
         }
+    }
+    if (readingMode_ == ReadingMode::VerticalWebtoon && basePage > 0) {
+        pages.push_back(basePage - 1);
     }
     return pages;
 }
@@ -760,7 +848,10 @@ void ReaderController::enqueuePageDecode(
 
                     const bool affectsCurrent =
                         (pageIndex == currentPage_) ||
-                        (readingMode_ == ReadingMode::DualPage && pageIndex == currentPage_ + 1);
+                        (readingMode_ == ReadingMode::DualPage && pageIndex == currentPage_ + 1) ||
+                        (readingMode_ == ReadingMode::VerticalWebtoon &&
+                         ((currentPage_ > 0 && pageIndex == currentPage_ - 1) ||
+                          pageIndex == currentPage_ + 1));
                     if (affectsCurrent) {
                         tryComposeAndEmitCurrentPage();
                     }
@@ -788,6 +879,39 @@ void ReaderController::tryComposeAndEmitCurrentPage() {
     const auto primaryFrame = cacheManager_->pageCache().get(
         PageCacheKey{cacheComicId, currentPage_});
     if (primaryFrame == nullptr || !primaryFrame->isValid()) {
+        return;
+    }
+
+    // Auto-detect ultra-tall Webtoon strips on first decoded page when no per-comic override exists.
+    if (pendingAutoWebtoonDetect_) {
+        pendingAutoWebtoonDetect_ = false;
+        if (primaryFrame->width > 0 &&
+            (static_cast<double>(primaryFrame->height) / static_cast<double>(primaryFrame->width)) > 2.2) {
+            applyingProfileOrSettings_ = true;
+            readingMode_ = ReadingMode::VerticalWebtoon;
+            readingDirection_ = ReadingDirection::LTR;
+            fitMode_ = FitMode::FitWidth;
+            applyingProfileOrSettings_ = false;
+            emit viewStateChanged();
+            requestCurrentAndPrefetchPages();
+            return;
+        }
+    }
+
+    if (readingMode_ == ReadingMode::VerticalWebtoon) {
+        // In VerticalWebtoon mode, compose only the single current page; ReaderViewport
+        // maintains a per-page GPU texture cache for [N-1, N, N+1] without CPU stitching.
+        auto layoutRes = RenderingEngine::composePageLayout(
+            *primaryFrame,
+            nullptr,
+            currentLayoutOptions());
+        if (!layoutRes.isOk()) {
+            emit errorOccurred(QString::fromStdString(layoutRes.error().message));
+            return;
+        }
+        lastPagesConsumed_ = layoutRes.value().pagesConsumed;
+        currentLayout_ = std::move(layoutRes.value());
+        emit pageReady(static_cast<int>(currentPage_), *currentLayout_);
         return;
     }
 

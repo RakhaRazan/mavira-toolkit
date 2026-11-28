@@ -255,13 +255,18 @@ Result<void> PdfDocumentReader::open(const std::filesystem::path& path) {
         return Result<void>::err(ErrorCode::CorruptArchive, "PDF file is empty or unreadable");
     }
 
+    const std::uint64_t fileSize64 = static_cast<std::uint64_t>(liSize.QuadPart);
+    if (fileSize64 > static_cast<std::uint64_t>((std::numeric_limits<unsigned long>::max)())) {
+        ::CloseHandle(hFile);
+        return Result<void>::err(
+            ErrorCode::InvalidArgument,
+            "PDF exceeds 4 GB Win32 PDFium custom-stream limit; convert to CBZ or split volume");
+    }
+
     auto ctx = std::make_unique<StreamContext>();
     ctx->fileHandle = hFile;
-    ctx->fileSize = static_cast<std::uint64_t>(liSize.QuadPart);
-    ctx->fileAccess.m_FileLen = static_cast<unsigned long>(
-        (std::min)(
-            ctx->fileSize,
-            static_cast<std::uint64_t>((std::numeric_limits<unsigned long>::max)())));
+    ctx->fileSize = fileSize64;
+    ctx->fileAccess.m_FileLen = static_cast<unsigned long>(fileSize64);
     ctx->fileAccess.m_GetBlock = &StreamContext::customReadCallback;
     ctx->fileAccess.m_Param = ctx.get();
 

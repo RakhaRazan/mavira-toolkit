@@ -109,6 +109,7 @@ private:
     QPushButton* btnCancel_{nullptr};
     QProgressBar* progressBar_{nullptr};
     QLabel* progressStatusLabel_{nullptr};
+    QLabel* navLabel_{nullptr};
     QButtonGroup* navGroup_{nullptr};
     QPushButton* btnTabGeneral_{nullptr};
     QPushButton* btnTabAdvanced_{nullptr};

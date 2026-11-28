@@ -384,6 +384,96 @@ Result<SpreadLayoutResult> RenderingEngine::composePageLayout(
     return Result<SpreadLayoutResult>::ok(std::move(result));
 }
 
+Result<SpreadLayoutResult> RenderingEngine::composeWebtoonStrip(
+    const ImageFrame* prevPage,
+    const ImageFrame& currentPage,
+    const ImageFrame* nextPage,
+    const LayoutOptions& options) {
+    if (!currentPage.isValid()) {
+        return Result<SpreadLayoutResult>::err(
+            ErrorCode::InvalidArgument,
+            "Current page frame is invalid");
+    }
+
+    auto maybeCrop = [&](const ImageFrame& src) -> ImageFrame {
+        return options.autoCropBorders ? autoCropBorders(src, options.cropOptions) : src;
+    };
+
+    ImageFrame prevFrame;
+    if (prevPage != nullptr && prevPage->isValid()) {
+        prevFrame = maybeCrop(*prevPage);
+    }
+    ImageFrame curFrame = maybeCrop(currentPage);
+    ImageFrame nextFrame;
+    if (nextPage != nullptr && nextPage->isValid()) {
+        nextFrame = maybeCrop(*nextPage);
+    }
+
+    const std::uint32_t maxW = (std::max)({
+        prevFrame.isValid() ? prevFrame.width : 0u,
+        curFrame.width,
+        nextFrame.isValid() ? nextFrame.width : 0u
+    });
+    const std::uint64_t totalH64 =
+        static_cast<std::uint64_t>(prevFrame.isValid() ? prevFrame.height : 0u) +
+        static_cast<std::uint64_t>(curFrame.height) +
+        static_cast<std::uint64_t>(nextFrame.isValid() ? nextFrame.height : 0u);
+
+    if (maxW == 0 || totalH64 == 0 || totalH64 > 0x3FFFFFFFULL) {
+        return Result<SpreadLayoutResult>::err(
+            ErrorCode::InvalidArgument,
+            "Composed Webtoon strip dimensions are invalid or exceed limits");
+    }
+
+    SpreadLayoutResult result;
+    result.isDualSpread = false;
+    result.isWideSolo = false;
+    result.pagesConsumed = 1;
+    result.webtoonPrevHeightPx = prevFrame.isValid() ? prevFrame.height : 0u;
+    result.webtoonCurrentHeightPx = curFrame.height;
+    result.webtoonNextHeightPx = nextFrame.isValid() ? nextFrame.height : 0u;
+
+    if (!prevFrame.isValid() && !nextFrame.isValid()) {
+        result.composedFrame = std::move(curFrame);
+    } else {
+        ImageFrame stitched;
+        stitched.width = maxW;
+        stitched.height = static_cast<std::uint32_t>(totalH64);
+        stitched.stride = maxW * ImageFrame::kBytesPerPixel;
+        stitched.pixels.resize(
+            static_cast<std::size_t>(stitched.stride) * static_cast<std::size_t>(stitched.height),
+            0);
+        // Set opaque alpha for any horizontal letterbox padding when slice widths differ.
+        for (std::size_t i = 3; i < stitched.pixels.size(); i += ImageFrame::kBytesPerPixel) {
+            stitched.pixels[i] = 255;
+        }
+
+        std::uint32_t cursorY = 0;
+        if (prevFrame.isValid()) {
+            const std::uint32_t offX = (maxW - prevFrame.width) / 2;
+            blitFrame(stitched, prevFrame, offX, cursorY);
+            cursorY += prevFrame.height;
+        }
+        {
+            const std::uint32_t offX = (maxW - curFrame.width) / 2;
+            blitFrame(stitched, curFrame, offX, cursorY);
+            cursorY += curFrame.height;
+        }
+        if (nextFrame.isValid()) {
+            const std::uint32_t offX = (maxW - nextFrame.width) / 2;
+            blitFrame(stitched, nextFrame, offX, cursorY);
+        }
+        result.composedFrame = std::move(stitched);
+    }
+
+    result.tiles = splitIntoVerticalTiles(
+        result.composedFrame,
+        options.webtoonSplitThresholdPx,
+        options.webtoonTileHeightPx);
+
+    return Result<SpreadLayoutResult>::ok(std::move(result));
+}
+
 ViewportTransform RenderingEngine::computeViewportTransform(
     std::uint32_t imageWidth,
     std::uint32_t imageHeight,

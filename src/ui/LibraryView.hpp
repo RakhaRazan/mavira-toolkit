@@ -37,6 +37,7 @@ public:
     [[nodiscard]] bool smartRename() const noexcept { return smartRename_; }
 
     void setCoverPixmap(std::int64_t comicId, const QPixmap& pixmap);
+    void evictPixmapsOutsideRange(int minKeepRow, int maxKeepRow);
     void clearCoverPixmaps();
     [[nodiscard]] bool hasCoverPixmap(std::int64_t comicId) const;
 

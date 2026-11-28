@@ -71,6 +71,9 @@ struct SpreadLayoutResult {
     bool isDualSpread{false};
     bool isWideSolo{false};
     std::size_t pagesConsumed{1};
+    std::uint32_t webtoonPrevHeightPx{0};
+    std::uint32_t webtoonCurrentHeightPx{0};
+    std::uint32_t webtoonNextHeightPx{0};
     mavira::core::ImageFrame composedFrame{};
     std::vector<TextureTile> tiles{};
 
@@ -147,6 +150,14 @@ public:
     [[nodiscard]] static mavira::core::Result<SpreadLayoutResult> composePageLayout(
         const mavira::core::ImageFrame& primaryPage,
         const mavira::core::ImageFrame* secondaryPage,
+        const LayoutOptions& options);
+
+    /// Composes a seamless vertical Webtoon strip from `[prevPage | currentPage | nextPage]`
+    /// stacked with zero gap and sliced into vertical GPU tiles <= `webtoonTileHeightPx`.
+    [[nodiscard]] static mavira::core::Result<SpreadLayoutResult> composeWebtoonStrip(
+        const mavira::core::ImageFrame* prevPage,
+        const mavira::core::ImageFrame& currentPage,
+        const mavira::core::ImageFrame* nextPage,
         const LayoutOptions& options);
 
     /// Computes display scale and rotated content dimensions for a target viewport.

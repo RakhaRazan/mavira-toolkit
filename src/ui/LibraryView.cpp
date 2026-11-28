@@ -68,14 +68,25 @@ void LibraryModel::setSmartRename(bool enabled) {
 }
 
 void LibraryModel::setCoverPixmap(std::int64_t comicId, const QPixmap& pixmap) {
-    if (pixmaps_.size() > static_cast<qsizetype>(kMaxUiPixmapEntries)) {
-        pixmaps_.clear();
-    }
     pixmaps_.insert(comicId, pixmap);
     const int row = rowForComicId(comicId);
     if (row >= 0) {
         const QModelIndex idx = index(row);
         emit dataChanged(idx, idx, {Qt::DecorationRole});
+    }
+}
+
+void LibraryModel::evictPixmapsOutsideRange(int minKeepRow, int maxKeepRow) {
+    if (pixmaps_.size() <= static_cast<qsizetype>(kMaxUiPixmapEntries)) {
+        return;
+    }
+    for (auto it = pixmaps_.begin(); it != pixmaps_.end();) {
+        const int row = rowForComicId(static_cast<std::int64_t>(it.key()));
+        if (row < minKeepRow || row > maxKeepRow) {
+            it = pixmaps_.erase(it);
+        } else {
+            ++it;
+        }
     }
 }
 
@@ -357,8 +368,10 @@ std::pair<int, int> LibraryView::computeVisibleRowRange() const {
     }
 
     const int vpWidth = std::max(1, vp.width());
-    const int cols = std::max(1, vpWidth / (ComicItemDelegate::kCardWidth + listView_->spacing()));
-    const int rowHeight = ComicItemDelegate::kCardHeight + listView_->spacing();
+    const int cardW = (delegate_ != nullptr) ? delegate_->cardWidth() : ComicItemDelegate::kCardWidth;
+    const int cardH = (delegate_ != nullptr) ? delegate_->cardHeight() : ComicItemDelegate::kCardHeight;
+    const int cols = std::max(1, vpWidth / (cardW + listView_->spacing()));
+    const int rowHeight = cardH + listView_->spacing();
     const int scrollY = listView_->verticalScrollBar()->value();
 
     const int firstVisualRow = std::max(0, scrollY / std::max(1, rowHeight));
@@ -408,6 +421,7 @@ void LibraryView::requestVisibleCovers() {
 
     // Cancel any Mode 1 (or in-flight) cover extraction tasks that scrolled off-screen.
     cancelOffscreenCoverTasks(keepMin, keepMax);
+    model_->evictPixmapsOutsideRange(keepMin, keepMax);
 
     auto* storage = cacheManager_->coverStorage();
     for (int row = firstRow; row <= lastRow; ++row) {

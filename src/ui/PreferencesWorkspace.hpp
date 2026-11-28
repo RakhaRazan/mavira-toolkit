@@ -12,6 +12,7 @@
 #include <map>
 #include <stop_token>
 #include <thread>
+#include <vector>
 
 class QButtonGroup;
 class QCheckBox;
@@ -27,6 +28,8 @@ class QSpinBox;
 class QStackedWidget;
 
 namespace mavira::ui {
+
+class SectionCardWidget;
 
 /// Full-area Preferences workspace inside `MainWindow`'s `QStackedWidget`
 /// with a 240px left category sidebar and `SectionCardWidget` cards on the right.
@@ -157,6 +160,12 @@ private:
     QPushButton* btnOptimizeDb_{nullptr};
     QPushButton* btnResetPrefsAdvanced_{nullptr};
     QLabel* lblAdvancedStatus_{nullptr};
+
+    struct LocalizedCard {
+        SectionCardWidget* card{nullptr};
+        const char* key{nullptr};
+    };
+    std::vector<LocalizedCard> sectionCards_{};
 
     std::stop_source packStopSource_{};
     std::jthread packWorkerThread_{};

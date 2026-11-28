@@ -42,19 +42,6 @@ constexpr const char* kFavoritesShelfName = "Favorites";
     return std::chrono::duration_cast<std::chrono::seconds>(now.time_since_epoch()).count();
 }
 
-[[nodiscard]] QChar seriesBucketLetter(const std::string& series) {
-    for (unsigned char ch : series) {
-        if (std::isspace(ch)) {
-            continue;
-        }
-        if (std::isalpha(ch)) {
-            return QChar(static_cast<char>(std::toupper(ch)));
-        }
-        return QChar(L'#');
-    }
-    return QChar(L'#');
-}
-
 void configureNodeItem(
     QTreeWidgetItem* item,
     SidebarNodeKind kind,
@@ -73,6 +60,40 @@ void configureNodeItem(
 }
 
 } // namespace
+
+QString ExplorerSidebar::seriesBucketForName(std::string_view series) {
+    const QString trimmed = QString::fromUtf8(series.data(), static_cast<int>(series.size())).trimmed();
+    if (trimmed.isEmpty()) {
+        return QStringLiteral("#");
+    }
+    const QList<uint> ucs4 = trimmed.toUcs4();
+    if (ucs4.isEmpty()) {
+        return QStringLiteral("#");
+    }
+    const uint cp = ucs4.first();
+    if ((cp >= U'A' && cp <= U'Z') || (cp >= U'a' && cp <= U'z')) {
+        return QString(QChar(static_cast<char>(std::toupper(static_cast<int>(cp)))));
+    }
+    // Japanese Hiragana / Katakana / Halfwidth Katakana
+    if ((cp >= 0x3040u && cp <= 0x309Fu) ||
+        (cp >= 0x30A0u && cp <= 0x30FFu) ||
+        (cp >= 0xFF65u && cp <= 0xFF9Fu)) {
+        return QStringLiteral("JP");
+    }
+    // Korean Hangul
+    if ((cp >= 0xAC00u && cp <= 0xD7AFu) ||
+        (cp >= 0x1100u && cp <= 0x11FFu) ||
+        (cp >= 0x3130u && cp <= 0x318Fu)) {
+        return QStringLiteral("KR");
+    }
+    // CJK Unified Ideographs & Extensions (Kanji / Hanzi)
+    if ((cp >= 0x4E00u && cp <= 0x9FFFu) ||
+        (cp >= 0x3400u && cp <= 0x4DBFu) ||
+        (cp >= 0x20000u && cp <= 0x2A6DFu)) {
+        return QStringLiteral("CJK");
+    }
+    return QStringLiteral("#");
+}
 
 ExplorerSidebar::ExplorerSidebar(
     mavira::data::db::DatabaseManager* db,
@@ -237,9 +258,9 @@ void ExplorerSidebar::refreshNavigation() {
 
     if (db_ != nullptr && db_->isOpen()) {
         if (auto seriesRes = db_->getDistinctSeries(); seriesRes) {
-            std::map<QChar, std::vector<std::string>> buckets;
+            std::map<QString, std::vector<std::string>> buckets;
             for (const auto& s : seriesRes.value()) {
-                buckets[seriesBucketLetter(s)].push_back(s);
+                buckets[seriesBucketForName(s)].push_back(s);
             }
             for (const auto& [letter, items] : buckets) {
                 auto* bucketItem = new QTreeWidgetItem(
@@ -249,7 +270,7 @@ void ExplorerSidebar::refreshNavigation() {
                     bucketItem,
                     SidebarNodeKind::SeriesBucket,
                     0,
-                    QString(letter));
+                    letter);
 
                 for (const auto& seriesName : items) {
                     const QString qSeries = QString::fromStdString(seriesName);
