@@ -1,4 +1,4 @@
-# MAVIRA - Native C++20 Comic Reader, Batch Converter, Extractor, Merger & Offline OCR Suite (v1.1.0)
+# MAVIRA - Native C++20 Comic Reader, Batch Converter, Extractor, Merger & Offline OCR Suite
 
 **MAVIRA** is a 100% portable, high-performance Windows x64 C++20 comic reader and batch utility suite built for **30,000+ volume collections** across Manga (JP RTL), Manhwa (KR Vertical Webtoon), and Manhua (CN Full-Color), backed by SQLite WAL + FTS5 indexing and hardware-accelerated OpenGL rendering.
 
