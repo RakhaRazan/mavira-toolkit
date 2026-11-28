@@ -1,17 +1,34 @@
-# MAVIRA - Native C++20 Batch Comic Converter, Extractor, Merger & Offline OCR Suite (v1.0.0)
+# MAVIRA - Native C++20 Comic Reader, Batch Converter, Extractor, Merger & Offline OCR Suite (v1.1.0)
 
-**MAVIRA** is a 100% portable, high-performance Windows x64 C++20 utility suite for batch comic conversion, smart page extraction, archive creation/merging, and offline Windows OCR, complete with a built-in hardware-accelerated quick preview reader and SQLite WAL + FTS5 library index.
+**MAVIRA** is a 100% portable, high-performance Windows x64 C++20 comic reader and batch utility suite built for **30,000+ volume collections** across Manga (JP RTL), Manhwa (KR Vertical Webtoon), and Manhua (CN Full-Color), backed by SQLite WAL + FTS5 indexing and hardware-accelerated OpenGL rendering.
 
 ---
 
 ## Key Features
 
-- **Batch Comic Converter:** Converts `.cbz`, `.cbr`, `.cb7`, `.cbt`, `.pdf`, `.epub`, and `.zip` containers with 100% lossless raw byte pass-through when keeping the original image format, plus optional batch image processing (scaling, levels, brightness, sharpening, grayscale manga tuning, and `.jpg`/`.png`/`.webp` re-encoding).
-- **Smart Page Extractor:** Extracts pages into `<ComicName>/001.ext` structured subfolders with zero-byte filtering, natural sort ordering, and direct PDF embedded image extraction.
-- **Comic Book Creator & Merger:** Packages image folders into `.cbz`, `.cb7`, `.cbt`, `.epub`, or `.pdf`, and merges multiple volumes via a 1-page streaming pipeline (< 40 MB RAM) with automatic chapter bookmarks.
-- **Offline Native Windows OCR:** Zero-bloat WinRT `Windows::Media::Ocr::OcrEngine` integration with manga screentone symbol cleanup and ALL-CAPS to Sentence case normalization.
-- **Built-In Quick Preview Reader:** Hardware-accelerated `QOpenGLWidget` viewport with Hold-to-Zoom Loupe Magnifier, Single Page / Dual-Page Smart Spread / Vertical Webtoon tiling, RTL/LTR reading modes, Auto-Crop, Auto-Scroll, and GLSL Manga Enhancer.
-- **High-Scale Library & Portable Layout:** SQLite3 WAL + FTS5 full-text search, Dual-Mode Cover System (64 MB RAM LRU + single-file `covers.pack`), Unplugged Drive Guard, 5 Gradient Themes, 5 Interface Languages, and zero registry writes (`./data/`).
+### Hardware-Accelerated Daily Reader (30,000+ Volumes)
+- **GPU-Accelerated OpenGL Viewport (`QOpenGLWidget`):** Smooth rendering with Single Page, Dual-Page Smart Spread (`Smart Wide-Spread` auto-solo detection), `Auto-Crop` whitespace/black-border trimming, and `F11` global fullscreen.
+- **Seamless Multi-Page Vertical Webtoon & Auto-Scroll:** Per-page `[N-1, N, N+1]` GPU tile cache with incremental `glDeleteTextures` eviction for zero-stutter continuous scrolling across 120-slice Manhwa chapters, plus 60fps hands-free Auto-Scroll (`Shift+Space`).
+- **Per-Comic Reading Profiles & Auto-Webtoon Detection:** Automatically saves Layout, Direction (`RTL`/`LTR`), and Fit Mode per comic in SQLite without mutating global Preferences; unset comics with `height / width > 2.2` auto-activate `VerticalWebtoon` + `LTR` + `FitWidth`.
+- **True HiDPI Loupe Magnifier:** Full `devicePixelRatioF()` scaling across `resizeGL()`, `paintGL()`, and the circular GLSL Loupe Magnifier (`2.0x-4.0x`, `180-320 px`) for razor-sharp Japanese furigana/kanji on 125%-200% Windows DPI.
+- **30,000-Title Discovery & Storage:** SQLite WAL + FTS5 instant search, indexed `Sort By` (`Title A-Z`, `Recently Added`, `Last Read`, `File Size`) and status filters (`All`, `Unread`, `In Progress`, `Finished`), Unicode CJK series buckets (`A-Z`, `JP`, `KR`, `CJK`, `#`), Dual-Mode Cover Cache (`covers.pack` persistent Win32 `HANDLE` + `OVERLAPPED` offset reads vs 64 MB Zero-Disk RAM LRU), `[N-5..N+2]` sequential RAR5/7z backward retention, and **Unplugged Drive Guard** for external HDDs.
+
+### Batch Comic Toolkit & Offline OCR
+- **100% Lossless Raw Byte Pass-Through:** Converts `.cbz`, `.cbr` (RAR5), `.cb7`, `.cbt`, `.pdf`, `.epub`, and `.zip` containers without re-encoding images when keeping the original format, plus optional batch image processing (scaling, levels, brightness, sharpening, grayscale manga tuning, and `.jpg`/`.png`/`.webp` encoding).
+- **PDF & Streaming Merger Optimizations:** `/DeviceGray` monochrome PDF optimization, direct embedded PDF image extraction, explicit >4 GB PDF Win64 LLP64 guard, and a 1-page streaming Comic Merger with automatic chapter bookmarks.
+- **Offline Native Windows OCR (`Tategaki` + CJK):** Zero-bloat WinRT `Windows::Media::Ocr::OcrEngine` with Japanese/Chinese vertical (`Tategaki`) right-to-left column sorting, CJK inter-character space normalization, halftone screentone cleanup, and ALL-CAPS normalization.
+- **5 Gradient Themes & 5 Languages:** `Obsidian Cyber`, `Midnight Velvet`, `Warm Parchment`, `Nordic Glacier`, and `Sakura Mist` with live switching across `en`, `id`, `zh`, `ja`, and `ko` (zero raw i18n keys).
+
+---
+
+## Verified v1.1.0 Benchmarks
+
+| Metric | Measured Result |
+| :--- | :--- |
+| **Portable Deployed Footprint (`MAVIRA.exe` + `runtime/`)** | **44.60 MB** |
+| **Cold Spawn (`MAVIRA.exe` -> `MAVIRA_Core.exe`)** | **69 ms** |
+| **Idle WorkingSet RAM (Lazy Workspaces)** | **59.46 MB** (`20.64 MB` Private) |
+| **Automated Unit Test Suite (`ctest`)** | **69 / 69 Passed (100%)** |
 
 ---
 
@@ -28,11 +45,16 @@ MAVIRA enforces a strict 4-layer modular C++20 architecture:
 
 ---
 
-## Quick Start (Portable Release)
+## Quick Start (Portable & Installer)
 
-1. Download or extract the portable release folder containing `MAVIRA.exe` and `runtime/`.
-2. Launch `MAVIRA.exe`.
-3. All library data, settings, and cover caches are automatically created in the local `./data/` directory.
+### Portable ZIP
+1. Download `MAVIRA-v1.1.0-Windows-x64-Portable.zip` from [GitHub Releases](https://github.com/RakhaRazan/mavira-toolkit/releases/latest).
+2. Extract the folder containing `MAVIRA.exe` and `runtime/`.
+3. Launch `MAVIRA.exe`. All library data, settings, and cover caches are stored cleanly inside `./data/`.
+
+### Windows x64 Installer
+1. Download and run `MAVIRA-Setup-x64-v1.1.0.exe` from [GitHub Releases](https://github.com/RakhaRazan/mavira-toolkit/releases/latest).
+2. Launch MAVIRA from the Start Menu or Desktop shortcut.
 
 ---
 
@@ -51,11 +73,11 @@ cmake --build --preset x64-release --parallel
 ctest --test-dir build/x64-release --output-on-failure
 ```
 
-### Deploy Portable Release
+### Deploy & Package Release
 ```powershell
 powershell -ExecutionPolicy Bypass -File packaging/deploy_windows.ps1
+powershell -ExecutionPolicy Bypass -File packaging/package_release.ps1
 ```
-This builds `MAVIRA.exe` + `runtime/` into the repository root and verifies the deployed footprint.
 
 ---
 

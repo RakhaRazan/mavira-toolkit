@@ -17,9 +17,10 @@ V/
 .vs/
 .vscode/
 
-# Binaries, object files & debug symbols
+# Binaries, archives, object files & debug symbols
 *.exe
 *.dll
+*.zip
 *.pdb
 *.obj
 
