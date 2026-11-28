@@ -4,7 +4,7 @@
 
 ---
 
-## Key Features
+## Key Features:
 
 ### Hardware-Accelerated Daily Reader (30,000+ Volumes)
 - **GPU-Accelerated OpenGL Viewport (`QOpenGLWidget`):** Smooth rendering with Single Page, Dual-Page Smart Spread (`Smart Wide-Spread` auto-solo detection), `Auto-Crop` whitespace/black-border trimming, and `F11` global fullscreen.
